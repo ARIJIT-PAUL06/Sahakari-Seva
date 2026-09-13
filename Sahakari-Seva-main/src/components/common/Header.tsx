@@ -11,6 +11,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   Modal,
@@ -327,7 +328,11 @@ export const Header: React.FC<HeaderProps> = ({
             </TouchableOpacity>
           )}
           <View style={styles.logoBadge}>
-            <Building2 size={16} color={colors.textInverse} />
+            <Image
+              source={require('../../../assets/logo-transparent.png')}
+              style={styles.logoBadgeImage}
+              resizeMode="contain"
+            />
           </View>
           <View style={styles.brandTextWrap}>
             <View style={styles.titleWithBadge}>
@@ -902,17 +907,24 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       marginRight: 2,
     },
     logoBadge: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
-      backgroundColor: colors.primary,
+      width: 34,
+      height: 34,
+      borderRadius: 9,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ffffff',
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.2,
-      shadowRadius: 3,
-      elevation: 2,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(226, 232, 240, 0.95)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.35 : 0.08,
+      shadowRadius: 4,
+      elevation: 3,
+      overflow: 'hidden',
+    },
+    logoBadgeImage: {
+      width: 28,
+      height: 28,
     },
     brandTextWrap: {
       flex: 1,

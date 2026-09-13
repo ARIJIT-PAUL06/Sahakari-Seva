@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   Linking,
@@ -129,7 +130,11 @@ export const Footer: React.FC = () => {
       {/* Brand Header */}
       <View style={styles.brandRow}>
         <View style={styles.brandLogoBox}>
-          <Building2 size={20} color="#ffffff" />
+          <Image
+            source={require('../../../assets/logo-transparent.png')}
+            style={styles.brandLogoImage}
+            resizeMode="contain"
+          />
         </View>
         <View style={styles.brandTextWrap}>
           <View style={styles.titleWithTag}>
@@ -459,12 +464,24 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       marginBottom: spacing.xs,
     },
     brandLogoBox: {
-      width: 36,
-      height: 36,
+      width: 38,
+      height: 38,
       borderRadius: radii.sm,
-      backgroundColor: colors.primary,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ffffff',
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(226, 232, 240, 0.95)',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.08,
+      shadowRadius: 4,
+      elevation: 2,
+      overflow: 'hidden',
+    },
+    brandLogoImage: {
+      width: 30,
+      height: 30,
     },
     brandTextWrap: {
       flex: 1,
