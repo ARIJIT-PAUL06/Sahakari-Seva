@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -58,6 +59,27 @@ const categoryIcons: Record<string, any> = {
   'Caregiving & Nursing': HeartPulse,
 };
 
+// ==============================================================================
+// HERO BANNER SLIDER CONFIGURATION
+// Add more banner objects here to automatically rotate them on the homepage.
+// ==============================================================================
+export interface HeroBannerItem {
+  id: string;
+  image: any;
+  route?: string;
+  title?: string;
+}
+
+export const HERO_BANNERS: HeroBannerItem[] = [
+  {
+    id: 'hero-1',
+    image: require('../../../assets/hero-banner-1.png'),
+    route: 'Search',
+    title: 'Trusted work. Shared prosperity.',
+  },
+  // Additional banners provided by user will auto-cycle in this slider
+];
+
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   useAppBackHandler({ homeRouteName: 'Home', isHome: true });
   const { t } = useTranslation();
@@ -69,6 +91,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [userLocation, setUserLocation] = useState({ latitude: 26.9017, longitude: 75.7925 });
   const [locationName, setLocationName] = useState('C-Scheme, Jaipur (302001)');
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+
+  // Auto-change hero banner every 5 seconds if multiple banners exist
+  useEffect(() => {
+    if (HERO_BANNERS.length <= 1) return;
+    const bannerTimer = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % HERO_BANNERS.length);
+    }, 5000);
+    return () => clearInterval(bannerTimer);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -106,68 +138,40 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
-        {/* GPS Live Radar Location Bar */}
+        {/* Dynamic Hero Carousel Section (Auto-changing banners with tap action) */}
         <FadeInView delay={0} distance={10} duration={320}>
-          <TouchableOpacity
-            style={styles.locationBanner}
-            onPress={() => navigation.navigate('Map')}
-            activeOpacity={0.82}
-          >
-            <View style={styles.locationLeft}>
-              <View style={styles.radarWrap}>
-                <PulseDot color="#10b981" size={8} ringScale={2.4} duration={1600} />
-              </View>
-              <View style={styles.locationTextWrap}>
-                <Text style={styles.locationLabel}>{t('home.current_location', 'LIVE GPS COVERAGE')}</Text>
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {locationName}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.mapLink}>
-              <Map size={13} color={colors.primary} />
-              <Text style={styles.mapLinkText}>{t('home.view_map')}</Text>
-            </View>
-          </TouchableOpacity>
-        </FadeInView>
-
-        {/* Dynamic Emergency Service Banner with LinearGradient & Pulsing Beacon */}
-        <FadeInView delay={80} distance={12} duration={340}>
-          <PulseView scaleTo={1.012} duration={2200}>
-            <LinearGradient
-              colors={isDark ? ['#3b0712', '#1f040a'] : ['#fff1f2', '#ffe4e6']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.emergencyCard}
+          <View style={styles.heroBannerContainer}>
+            <TouchableOpacity
+              activeOpacity={0.92}
+              onPress={() => {
+                const route = HERO_BANNERS[currentBannerIndex]?.route || 'Search';
+                navigation.navigate(route);
+              }}
+              style={styles.heroBannerTouch}
             >
-              <View style={styles.emergencyHeaderRow}>
-                <View style={styles.emergencyTagRow}>
-                  <PulseDot color={colors.danger} size={7} ringScale={2.4} duration={1200} />
-                  <Text style={styles.emergencyTagText}>EMERGENCY 24/7</Text>
-                </View>
-                <View style={styles.emergencySlaBadge}>
-                  <Clock size={11} color={colors.dangerDark} />
-                  <Text style={styles.emergencySlaText}>&lt; 15 min response</Text>
-                </View>
+              <Image
+                source={HERO_BANNERS[currentBannerIndex]?.image}
+                style={styles.heroBannerImage}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+
+            {HERO_BANNERS.length > 1 && (
+              <View style={styles.heroDotsContainer}>
+                {HERO_BANNERS.map((_, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => setCurrentBannerIndex(idx)}
+                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    style={[
+                      styles.heroDot,
+                      idx === currentBannerIndex && styles.heroDotActive,
+                    ]}
+                  />
+                ))}
               </View>
-
-              <Text style={styles.emergencyTitle}>{t('home.emergency_banner_title')}</Text>
-              <Text style={styles.emergencyDesc}>{t('home.emergency_banner_desc')}</Text>
-
-              <ScalePressable onPress={() => navigation.navigate('Search', { emergencyOnly: true })} scaleTo={0.97}>
-                <LinearGradient
-                  colors={['#e11d48', '#be123c']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.emergencyBtn}
-                >
-                  <Zap size={16} color="#ffffff" fill="#ffffff" />
-                  <Text style={styles.emergencyBtnText}>{t('home.emergency_btn')}</Text>
-                  <ChevronRight size={14} color="#ffffff" />
-                </LinearGradient>
-              </ScalePressable>
-            </LinearGradient>
-          </PulseView>
+            )}
+          </View>
         </FadeInView>
 
         {/* Categories Grid with Trade-Specific Vibrant Gradients */}
@@ -282,137 +286,52 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  locationBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingVertical: 10,
-    paddingHorizontal: 13,
-    borderRadius: 14,
-    marginBottom: 16,
+  heroBannerContainer: {
+    width: '100%',
+    marginBottom: 20,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: isDark ? '#080d19' : '#ffffff',
     borderWidth: 1.2,
     borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  locationLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  radarWrap: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationTextWrap: {
-    flex: 1,
-  },
-  locationLabel: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    color: '#10b981',
-    marginBottom: 1,
-  },
-  locationText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  mapLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  mapLinkText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: colors.primaryDark,
-  },
-  emergencyCard: {
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: isDark ? '#7f1d1d' : '#fca5a5',
-    marginBottom: 20,
-    shadowColor: colors.danger,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: isDark ? 0.45 : 0.08,
     shadowRadius: 10,
     elevation: 3,
+    position: 'relative',
   },
-  emergencyHeaderRow: {
+  heroBannerTouch: {
+    width: '100%',
+  },
+  heroBannerImage: {
+    width: '100%',
+    aspectRatio: 2.55,
+    borderRadius: 17,
+  },
+  heroDotsContainer: {
+    position: 'absolute',
+    bottom: 8,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  emergencyTagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  emergencyTagText: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-    color: colors.danger,
-  },
-  emergencySlaBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ffe4e6',
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  emergencySlaText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: colors.dangerDark,
-  },
-  emergencyTitle: {
-    fontSize: 15.5,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  emergencyDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 17,
-  },
-  emergencyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 13,
-    paddingVertical: 10.5,
-    paddingHorizontal: 16,
-    borderRadius: 10,
     gap: 6,
-    shadowColor: colors.danger,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.40)',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 12,
   },
-  emergencyBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#ffffff',
+  heroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  heroDotActive: {
+    width: 16,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ffffff',
   },
   section: {
     marginBottom: 22,
