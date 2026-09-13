@@ -629,35 +629,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         </FadeInView>
 
-        {/* Quick Suggested Searches Bar (When search bar is focused but empty) */}
-        {isSearchFocused && searchQuery.trim().length === 0 && (
-          <FadeInView delay={0} distance={4} duration={180} style={styles.quickSuggestionsBar}>
-            <Text style={styles.quickSuggestionsLabel}>POPULAR SEARCHES</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.quickPillsScroll}
-              keyboardShouldPersistTaps="handled"
-            >
-              {QUICK_SUGGESTIONS.map((item, idx) => (
-                <ScalePressable
-                  key={idx}
-                  scaleTo={0.92}
-                  hoverLift={-1}
-                  style={styles.quickPill}
-                  onPress={() => {
-                    setSearchQuery(item.query);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={item.label}
-                >
-                  <Text style={styles.quickPillText}>{item.label}</Text>
-                </ScalePressable>
-              ))}
-            </ScrollView>
-          </FadeInView>
-        )}
-
         {/* SEARCH RESULTS VIEW (When query is present) OR NORMAL UNCLUTTERED HOME FEED */}
         {searchQuery.trim().length > 0 ? (
           <FadeInView delay={0} distance={6} duration={200} style={styles.searchResultsWrapper}>
