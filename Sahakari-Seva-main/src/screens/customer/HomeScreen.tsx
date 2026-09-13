@@ -22,6 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Header } from '../../components/common/Header';
 import { WorkerCard } from '../../components/common/WorkerCard';
 import { Footer } from '../../components/common/Footer';
+import { rootNavigationRef } from '../../navigation/RootNavigator';
 import { ApiClient } from '../../services/apiClient';
 import { MobileLocationService } from '../../services/locationService';
 import { ServiceCategory, NearbyWorkerResult, Worker } from '../../types';
@@ -398,7 +399,15 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         badgeColor: '#087F5B',
         badgeBg: '#E8F7F1',
         icon: ShieldCheck,
-        onPress: () => navigation.navigate('WorkerWelfare'),
+        onPress: () => {
+          try {
+            navigation.navigate('WorkerWelfare');
+          } catch (e) {
+            if (rootNavigationRef.isReady()) {
+              rootNavigationRef.navigate('WorkerWelfare');
+            }
+          }
+        },
       });
     }
 
@@ -702,6 +711,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                             key={act.id}
                             activeOpacity={0.88}
                             onPress={act.onPress}
+                            accessibilityRole="button"
+                            accessibilityLabel={act.title}
                             style={styles.actionResultCard}
                           >
                             <View style={[styles.actionIconWrap, { backgroundColor: act.badgeBg || '#E8F7F1' }]}>
