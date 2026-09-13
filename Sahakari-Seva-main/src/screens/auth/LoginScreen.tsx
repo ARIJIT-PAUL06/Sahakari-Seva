@@ -63,7 +63,7 @@ import { useTheme } from '../../theme';
 // Set USE_IMAGE_BACKGROUND = false → Original gradient + Ashoka Chakra + SVG map
 // All foreground content (login card, OTP, buttons, footer) is UNCHANGED.
 // ==============================================================================
-const USE_IMAGE_BACKGROUND = true;
+const USE_IMAGE_BACKGROUND = false;
 
 interface LoginScreenProps {
   onSelectRole: (role: 'customer' | 'worker' | 'admin', userProfile?: any) => void;
