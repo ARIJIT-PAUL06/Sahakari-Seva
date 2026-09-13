@@ -22,7 +22,7 @@ export const ThemeToggle: React.FC = () => {
   useEffect(() => {
     Animated.spring(progress, {
       toValue: isDark ? 1 : 0,
-      useNativeDriver: true,
+      useNativeDriver: false,
       friction: 7,
       tension: 90,
     }).start();

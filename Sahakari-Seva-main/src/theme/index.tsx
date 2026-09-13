@@ -428,7 +428,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toValue: 1,
       duration: 150,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
 
     setTimeout(() => {
@@ -438,7 +438,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           toValue: 0,
           duration: 320,
           easing: Easing.inOut(Easing.cubic),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }).start();
 
         setTimeout(() => {

@@ -140,6 +140,94 @@ export const QUICK_SUGGESTIONS = [
   { label: '🤝 Worker Welfare', query: 'welfare' },
 ];
 
+interface CategoryCardItemProps {
+  cat: ServiceCategory;
+  idx: number;
+  navigation: any;
+  colors: Palette;
+  isDark: boolean;
+  styles: any;
+}
+
+const CategoryCardItem: React.FC<CategoryCardItemProps> = ({
+  cat,
+  idx,
+  navigation,
+  colors,
+  isDark,
+  styles,
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const catImg = CATEGORY_IMAGES[cat.name];
+  const title = translateTrade(cat.name);
+  const priceText = CATEGORY_PRICES[cat.name] || 'Fair Rates';
+
+  return (
+    <FadeInView
+      delay={80 + idx * 25}
+      distance={8}
+      duration={240}
+      style={styles.categoryCardWrap}
+    >
+      <ScalePressable
+        onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })}
+        scaleTo={0.93}
+        hoverLift={-3}
+        hoverScale={1.02}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}, ${priceText}`}
+      >
+        <View
+          style={[
+            styles.categoryCard,
+            isHovered && styles.categoryCardHovered,
+          ]}
+          // @ts-ignore
+          onMouseEnter={() => setIsHovered(true)}
+          // @ts-ignore
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <View style={[styles.catImageWrap, isHovered && styles.catImageWrapHovered]}>
+            {catImg ? (
+              <Image
+                source={catImg}
+                style={[styles.catImage, isHovered && styles.catImageHovered]}
+                resizeMode="contain"
+              />
+            ) : (
+              <Text style={{ fontSize: 24 }}>🛠️</Text>
+            )}
+          </View>
+          <Text
+            style={[
+              styles.catTitle,
+              isHovered && { color: isDark ? '#34d399' : '#087F5B' },
+            ]}
+            numberOfLines={2}
+          >
+            {title}
+          </Text>
+          <View
+            style={[
+              styles.catPriceChip,
+              isHovered && styles.catPriceChipHovered,
+            ]}
+          >
+            <Text
+              style={[
+                styles.catPriceText,
+                isHovered && { color: '#FFFFFF' },
+              ]}
+            >
+              {priceText}
+            </Text>
+          </View>
+        </View>
+      </ScalePressable>
+    </FadeInView>
+  );
+};
+
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   useAppBackHandler({ homeRouteName: 'Home', isHome: true });
   const { t } = useTranslation();
@@ -159,14 +247,18 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const bannerScrollRef = useRef<ScrollView>(null);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const isInteractingWithBanner = useRef(false);
+  const bannerTimerRef = useRef<any>(null);
   const [bannerWidth, setBannerWidth] = useState(
     Math.max(Dimensions.get('window').width - 32, 280)
   );
 
-  // Auto-scroll hero banners horizontally between each other in a brief period of time (4s)
+  // Auto-scroll hero banners horizontally between each other in a brief period of time (4.2s)
   useEffect(() => {
     if (HERO_BANNERS.length <= 1 || bannerWidth <= 0) return;
-    const bannerTimer = setInterval(() => {
+    if (bannerTimerRef.current) clearInterval(bannerTimerRef.current);
+    bannerTimerRef.current = setInterval(() => {
+      if (isInteractingWithBanner.current) return;
       setCurrentBannerIndex((prev) => {
         const nextIdx = (prev + 1) % HERO_BANNERS.length;
         bannerScrollRef.current?.scrollTo({
@@ -175,8 +267,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         });
         return nextIdx;
       });
-    }, 4000);
-    return () => clearInterval(bannerTimer);
+    }, 4200);
+    return () => {
+      if (bannerTimerRef.current) clearInterval(bannerTimerRef.current);
+    };
   }, [bannerWidth]);
 
   const loadData = async () => {
@@ -477,13 +571,23 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadData();
+            }}
+            tintColor="#087F5B"
+            colors={['#087F5B']}
+          />
+        }
       >
         {/* 1. Fully Functional Universal Search Field */}
-        <FadeInView delay={0} distance={8} duration={260}>
+        <FadeInView delay={0} distance={6} duration={240}>
           <View style={[styles.searchBarContainer, isSearchFocused && styles.searchBarContainerFocused]}>
             <View style={styles.searchIconWrap}>
-              <Search size={18} color="#087F5B" />
+              <Search size={18} color={isSearchFocused ? '#087F5B' : colors.textSecondary} />
             </View>
             <TextInput
               ref={searchInputRef}
@@ -499,32 +603,35 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               autoCorrect={false}
             />
             {searchQuery.trim().length > 0 ? (
-              <TouchableOpacity
-                activeOpacity={0.7}
+              <ScalePressable
                 onPress={() => {
                   setSearchQuery('');
                   searchInputRef.current?.blur();
                 }}
+                scaleTo={0.88}
                 style={styles.clearSearchBtn}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search input"
               >
                 <X size={15} color={colors.textSecondary} />
-              </TouchableOpacity>
+              </ScalePressable>
             ) : (
-              <TouchableOpacity
-                activeOpacity={0.8}
+              <ScalePressable
                 onPress={() => searchInputRef.current?.focus()}
+                scaleTo={0.88}
                 style={styles.searchCtaChip}
+                accessibilityRole="button"
+                accessibilityLabel="Focus search"
               >
                 <ArrowRight size={13} color="#087F5B" />
-              </TouchableOpacity>
+              </ScalePressable>
             )}
           </View>
         </FadeInView>
 
         {/* Quick Suggested Searches Bar (When search bar is focused but empty) */}
         {isSearchFocused && searchQuery.trim().length === 0 && (
-          <View style={styles.quickSuggestionsBar}>
+          <FadeInView delay={0} distance={4} duration={180} style={styles.quickSuggestionsBar}>
             <Text style={styles.quickSuggestionsLabel}>POPULAR SEARCHES</Text>
             <ScrollView
               horizontal
@@ -533,24 +640,27 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               keyboardShouldPersistTaps="handled"
             >
               {QUICK_SUGGESTIONS.map((item, idx) => (
-                <TouchableOpacity
+                <ScalePressable
                   key={idx}
-                  activeOpacity={0.8}
+                  scaleTo={0.92}
+                  hoverLift={-1}
                   style={styles.quickPill}
                   onPress={() => {
                     setSearchQuery(item.query);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.label}
                 >
                   <Text style={styles.quickPillText}>{item.label}</Text>
-                </TouchableOpacity>
+                </ScalePressable>
               ))}
             </ScrollView>
-          </View>
+          </FadeInView>
         )}
 
         {/* SEARCH RESULTS VIEW (When query is present) OR NORMAL UNCLUTTERED HOME FEED */}
         {searchQuery.trim().length > 0 ? (
-          <View style={styles.searchResultsWrapper}>
+          <FadeInView delay={0} distance={6} duration={200} style={styles.searchResultsWrapper}>
             {/* Header summary: Results count + Clear button */}
             <View style={styles.resultsHeaderRow}>
               <View style={styles.resultsBadge}>
@@ -558,16 +668,18 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   {searchResults.totalCount} {searchResults.totalCount === 1 ? 'match' : 'matches'} for "{searchQuery.trim()}"
                 </Text>
               </View>
-              <TouchableOpacity
-                activeOpacity={0.8}
+              <ScalePressable
+                scaleTo={0.92}
                 onPress={() => {
                   setSearchQuery('');
                   searchInputRef.current?.blur();
                 }}
                 style={styles.clearAllLink}
+                accessibilityRole="button"
+                accessibilityLabel="Clear all search results"
               >
                 <Text style={styles.clearAllLinkText}>Clear ✕</Text>
-              </TouchableOpacity>
+              </ScalePressable>
             </View>
 
             {searchResults.totalCount > 0 ? (
@@ -588,11 +700,14 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         const img = CATEGORY_IMAGES[cat.name];
                         const price = CATEGORY_PRICES[cat.name] || `From ₹${cat.base_price || 249}`;
                         return (
-                          <TouchableOpacity
+                          <ScalePressable
                             key={cat.id}
-                            activeOpacity={0.9}
+                            scaleTo={0.97}
+                            hoverLift={-2}
                             onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })}
                             style={styles.serviceResultCard}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${title}, ${price}`}
                           >
                             <View style={styles.serviceResultLeft}>
                               {img ? (
@@ -615,7 +730,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                               </View>
                               <Text style={styles.viewWorkersText}>View →</Text>
                             </View>
-                          </TouchableOpacity>
+                          </ScalePressable>
                         );
                       })}
                     </View>
@@ -635,9 +750,11 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                       {searchResults.workers.map((w) => (
                         <View key={w.workerId} style={styles.workerResultCard}>
                           <TouchableOpacity
-                            activeOpacity={0.9}
+                            activeOpacity={0.85}
                             onPress={() => navigation.navigate('WorkerDetail', { workerId: w.workerId })}
                             style={styles.workerResultMain}
+                            accessibilityRole="button"
+                            accessibilityLabel={`View ${w.workerName}'s profile`}
                           >
                             <View style={styles.workerAvatarCircle}>
                               <Text style={styles.workerAvatarInitials}>
@@ -669,8 +786,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                               ) : null}
                             </View>
                           </TouchableOpacity>
-                          <TouchableOpacity
-                            activeOpacity={0.88}
+                          <ScalePressable
+                            scaleTo={0.92}
+                            hoverLift={-1}
                             onPress={() => {
                               navigation.navigate('BookingCreate', {
                                 worker: {
@@ -685,9 +803,11 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                               });
                             }}
                             style={styles.workerBookBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Book ${w.workerName}`}
                           >
                             <Text style={styles.workerBookBtnText}>⚡ Book ₹{w.hourlyRate} →</Text>
-                          </TouchableOpacity>
+                          </ScalePressable>
                         </View>
                       ))}
                     </View>
@@ -707,9 +827,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                       {searchResults.actions.map((act) => {
                         const IconComponent = act.icon;
                         return (
-                          <TouchableOpacity
+                          <ScalePressable
                             key={act.id}
-                            activeOpacity={0.88}
+                            scaleTo={0.98}
+                            hoverLift={-2}
                             onPress={act.onPress}
                             accessibilityRole="button"
                             accessibilityLabel={act.title}
@@ -732,7 +853,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                               <Text style={styles.actionSubtitle}>{act.subtitle}</Text>
                             </View>
                             <ChevronRight size={16} color="#667085" />
-                          </TouchableOpacity>
+                          </ScalePressable>
                         );
                       })}
                     </View>
@@ -751,24 +872,27 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 </Text>
                 <View style={styles.suggestedPillsWrap}>
                   {QUICK_SUGGESTIONS.slice(0, 6).map((item, idx) => (
-                    <TouchableOpacity
+                    <ScalePressable
                       key={idx}
-                      activeOpacity={0.8}
+                      scaleTo={0.92}
+                      hoverLift={-1}
                       style={styles.suggestedPill}
                       onPress={() => setSearchQuery(item.query)}
+                      accessibilityRole="button"
+                      accessibilityLabel={item.label}
                     >
                       <Text style={styles.suggestedPillText}>{item.label}</Text>
-                    </TouchableOpacity>
+                    </ScalePressable>
                   ))}
                 </View>
               </View>
             )}
-          </View>
+          </FadeInView>
         ) : (
           /* Normal Clean Home Feed */
           <>
             {/* 2. Hero Section with auto-scroll carousel, exact aspect ratio, and Primary CTA */}
-            <FadeInView delay={60} distance={10} duration={320}>
+            <FadeInView delay={40} distance={8} duration={280}>
               <View
                 style={styles.heroShadowWrapper}
                 onLayout={(e) => {
@@ -786,6 +910,22 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                     showsHorizontalScrollIndicator={false}
                     bounces={false}
                     scrollEventThrottle={16}
+                    onTouchStart={() => {
+                      isInteractingWithBanner.current = true;
+                    }}
+                    onTouchEnd={() => {
+                      setTimeout(() => {
+                        isInteractingWithBanner.current = false;
+                      }, 4000);
+                    }}
+                    onScrollBeginDrag={() => {
+                      isInteractingWithBanner.current = true;
+                    }}
+                    onScrollEndDrag={() => {
+                      setTimeout(() => {
+                        isInteractingWithBanner.current = false;
+                      }, 4000);
+                    }}
                     onMomentumScrollEnd={(e) => {
                       const offset = e.nativeEvent.contentOffset.x;
                       const idx = Math.round(offset / (bannerWidth || 1));
@@ -805,6 +945,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                           navigation.navigate(route);
                         }}
                         style={{ width: bannerWidth, height: '100%' }}
+                        accessibilityRole="button"
+                        accessibilityLabel={banner.title || 'Cooperative Banner'}
                       >
                         <Image
                           source={banner.image}
@@ -819,25 +961,34 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                   {HERO_BANNERS.length > 1 && (
                     <View style={styles.paginationDotsContainer} pointerEvents="box-none">
                       <View style={styles.paginationPill}>
-                        {HERO_BANNERS.map((_, idx) => (
-                          <TouchableOpacity
-                            key={idx}
-                            activeOpacity={0.8}
-                            onPress={() => {
-                              bannerScrollRef.current?.scrollTo({
-                                x: idx * bannerWidth,
-                                animated: true,
-                              });
-                              setCurrentBannerIndex(idx);
-                            }}
-                            style={[
-                              styles.paginationDot,
-                              idx === currentBannerIndex
-                                ? styles.paginationDotActive
-                                : styles.paginationDotInactive,
-                            ]}
-                          />
-                        ))}
+                        {HERO_BANNERS.map((_, idx) => {
+                          const isActive = idx === currentBannerIndex;
+                          return (
+                            <TouchableOpacity
+                              key={idx}
+                              activeOpacity={0.8}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Carousel slide ${idx + 1}`}
+                              onPress={() => {
+                                isInteractingWithBanner.current = true;
+                                bannerScrollRef.current?.scrollTo({
+                                  x: idx * bannerWidth,
+                                  animated: true,
+                                });
+                                setCurrentBannerIndex(idx);
+                                setTimeout(() => {
+                                  isInteractingWithBanner.current = false;
+                                }, 4000);
+                              }}
+                              style={[
+                                styles.paginationDot,
+                                isActive
+                                  ? styles.paginationDotActive
+                                  : styles.paginationDotInactive,
+                              ]}
+                            />
+                          );
+                        })}
                       </View>
                     </View>
                   )}
@@ -847,97 +998,95 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               {/* Tagline Card with Primary CTA */}
               <View style={styles.heroActionRow}>
                 <View style={styles.heroActionTextWrap}>
-                  <Text style={styles.heroActionTitle}>Trusted work. Shared prosperity.</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <PulseDot color="#087F5B" size={6} ringScale={2.2} duration={2000} />
+                    <Text style={styles.heroActionTitle}>Trusted work. Shared prosperity.</Text>
+                  </View>
                   <Text style={styles.heroActionSubtitle}>100% Worker-Owned Cooperative</Text>
                 </View>
-                <TouchableOpacity
-                  activeOpacity={0.88}
+                <ScalePressable
                   onPress={() => navigation.navigate('Search')}
+                  scaleTo={0.93}
+                  hoverLift={-1}
+                  accessibilityRole="button"
+                  accessibilityLabel="Find a professional"
                   style={styles.heroCtaBtn}
                 >
                   <Text style={styles.heroCtaBtnText}>Find a professional →</Text>
-                </TouchableOpacity>
+                </ScalePressable>
               </View>
             </FadeInView>
 
             {/* 3. Cooperative Certified Services (8 Categories) */}
-            <FadeInView delay={120} distance={12} duration={300}>
+            <FadeInView delay={100} distance={10} duration={280}>
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionTitleRow}>
                     <View style={styles.sectionAccentBar} />
                     <Text style={styles.sectionTitle}>What does your home need today?</Text>
                   </View>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
+                  <ScalePressable
                     onPress={() => navigation.navigate('Search')}
+                    scaleTo={0.92}
+                    hoverLift={-1}
+                    accessibilityRole="button"
+                    accessibilityLabel="See all services"
                     style={styles.seeAllBtn}
                   >
                     <Text style={styles.seeAllText}>See all →</Text>
-                  </TouchableOpacity>
+                  </ScalePressable>
                 </View>
 
                 {/* 8 Category Grid */}
                 <View style={styles.categoryGrid}>
-                  {categories.slice(0, 8).map((cat, idx) => {
-                    const catImg = CATEGORY_IMAGES[cat.name];
-                    const title = translateTrade(cat.name);
-                    const priceText = CATEGORY_PRICES[cat.name] || 'Fair Rates';
-
-                    return (
-                      <FadeInView key={cat.id} delay={120 + idx * 25} distance={8} duration={260} style={styles.categoryCardWrap}>
-                        <ScalePressable onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })} scaleTo={0.94}>
-                          <View style={styles.categoryCard}>
-                            <View style={styles.catImageWrap}>
-                              {catImg ? (
-                                <Image
-                                  source={catImg}
-                                  style={styles.catImage}
-                                  resizeMode="contain"
-                                />
-                              ) : (
-                                <Text style={{ fontSize: 24 }}>🛠️</Text>
-                              )}
-                            </View>
-                            <Text style={styles.catTitle} numberOfLines={2}>
-                              {title}
-                            </Text>
-                            <View style={styles.catPriceChip}>
-                              <Text style={styles.catPriceText}>{priceText}</Text>
-                            </View>
-                          </View>
-                        </ScalePressable>
-                      </FadeInView>
-                    );
-                  })}
+                  {categories.slice(0, 8).map((cat, idx) => (
+                    <CategoryCardItem
+                      key={cat.id}
+                      cat={cat}
+                      idx={idx}
+                      navigation={navigation}
+                      colors={colors}
+                      isDark={isDark}
+                      styles={styles}
+                    />
+                  ))}
                 </View>
               </View>
             </FadeInView>
 
             {/* 4. Emergency Service */}
-            <FadeInView delay={200} distance={12} duration={300}>
-              <TouchableOpacity
-                activeOpacity={0.92}
+            <FadeInView delay={160} distance={10} duration={280}>
+              <ScalePressable
                 onPress={() => navigation.navigate('Search', { emergencyOnly: true })}
-                style={styles.emergencyBanner}
+                scaleTo={0.97}
+                hoverLift={-2}
+                accessibilityRole="button"
+                accessibilityLabel="Need Emergency Repair? Get Help Now"
               >
-                <View style={styles.emergencyLeft}>
-                  <View style={styles.emergencyIconWrap}>
-                    <Zap size={18} color="#D92D4F" />
+                <View style={styles.emergencyBanner}>
+                  <View style={styles.emergencyLeft}>
+                    <PulseView scaleTo={1.14} duration={1200} style={styles.emergencyIconWrap}>
+                      <Zap size={18} color="#D92D4F" />
+                    </PulseView>
+                    <View style={styles.emergencyTextWrap}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.emergencyHeadline}>Need Emergency Repair?</Text>
+                        <View style={styles.emergencyPillTag}>
+                          <Text style={styles.emergencyPillText}>30m SLA</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.emergencySupportText}>Electrical • Plumbing • AC</Text>
+                    </View>
                   </View>
-                  <View style={styles.emergencyTextWrap}>
-                    <Text style={styles.emergencyHeadline}>Need Emergency Repair?</Text>
-                    <Text style={styles.emergencySupportText}>Electrical • Plumbing • AC</Text>
+                  <View style={styles.emergencyCta}>
+                    <Text style={styles.emergencyCtaText}>Get Help Now →</Text>
                   </View>
                 </View>
-                <View style={styles.emergencyCta}>
-                  <Text style={styles.emergencyCtaText}>Get Help Now →</Text>
-                </View>
-              </TouchableOpacity>
+              </ScalePressable>
             </FadeInView>
 
             {/* 5. Cooperative Transparency Footer */}
-            <FadeInView delay={260} distance={12} duration={320}>
+            <FadeInView delay={220} distance={10} duration={300}>
               <Footer />
             </FadeInView>
           </>
@@ -1183,6 +1332,14 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  categoryCardHovered: {
+    borderColor: '#087F5B',
+    shadowColor: '#087F5B',
+    shadowOpacity: isDark ? 0.45 : 0.14,
+    shadowRadius: 10,
+    elevation: 4,
+    backgroundColor: isDark ? '#111c30' : '#FFFFFF',
+  },
   catImageWrap: {
     width: 52,
     height: 52,
@@ -1190,9 +1347,15 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
+  catImageWrapHovered: {
+    transform: [{ scale: 1.06 }],
+  },
   catImage: {
     width: '100%',
     height: '100%',
+  },
+  catImageHovered: {
+    transform: [{ scale: 1.04 }],
   },
   catTitle: {
     fontSize: 10.5,
@@ -1210,10 +1373,19 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     borderRadius: 4,
     marginTop: 3,
   },
+  catPriceChipHovered: {
+    backgroundColor: '#087F5B',
+  },
   catPriceText: {
     fontSize: 9,
     fontWeight: '700',
     color: '#087F5B',
+  },
+  coopDotLive: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#087F5B',
   },
   emergencyBanner: {
     flexDirection: 'row',
@@ -1253,6 +1425,17 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   emergencyHeadline: {
     fontSize: 13.5,
     fontWeight: '700',
+    color: '#D92D4F',
+  },
+  emergencyPillTag: {
+    backgroundColor: isDark ? 'rgba(217, 45, 79, 0.35)' : '#fee2e2',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+  },
+  emergencyPillText: {
+    fontSize: 9,
+    fontWeight: '800',
     color: '#D92D4F',
   },
   emergencySupportText: {
