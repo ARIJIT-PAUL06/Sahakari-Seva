@@ -115,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { t, i18n } = useTranslation();
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, toggleTheme } = useTheme();
   const styles = createStyles(colors, isDark);
   const { role } = useRole();
   const { logout } = useContext(AuthContext);
@@ -124,6 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [sosModalVisible, setSosModalVisible] = useState(false);
   const [sosBeaconActive, setSosBeaconActive] = useState(false);
+  const [ombudsmanModalVisible, setOmbudsmanModalVisible] = useState(false);
 
   // Worker live status
   const [workerAvailability, setWorkerAvailability] = useState<AvailabilityStatus>('available');
@@ -229,9 +230,13 @@ export const Header: React.FC<HeaderProps> = ({
     setMenuVisible(false);
     if (!rootNavigationRef.isReady()) return;
     try {
-      rootNavigationRef.navigate('WorkerLocation');
+      rootNavigationRef.navigate('WorkerTabs', { screen: 'WorkerLocation' });
     } catch (e) {
-      console.warn('Navigation to location map error:', e);
+      try {
+        rootNavigationRef.navigate('WorkerLocation');
+      } catch (err2) {
+        console.warn('Navigation to location map error:', e, err2);
+      }
     }
   };
 
@@ -289,14 +294,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleOpenOmbudsman = () => {
     setMenuVisible(false);
-    Alert.alert(
-      'Cooperative Ombudsman',
-      'Statutory 12-hour binding dispute resolution under Rajasthan Cooperative Societies Act. Contact Registrar Grievance Cell toll-free at 1800-SAHAKAR (1800-724-2527).',
-      [
-        { text: 'Call Desk', onPress: () => openDialer('18007242527') },
-        { text: 'OK', style: 'cancel' },
-      ]
-    );
+    setOmbudsmanModalVisible(true);
   };
 
   const handleOpenLanguage = () => {
@@ -582,7 +580,23 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Customer Specific Tools */}
               {role === 'customer' && (
                 <>
-                  {/* Co-op Patronage Passbook */}
+                  {/* Welfare & Social Security Passbook */}
+                  <TouchableOpacity
+                    style={styles.dropdownItemBtn}
+                    onPress={handleOpenWelfare}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.itemIconWrap, { backgroundColor: colors.secondaryLight }]}>
+                      <Heart size={15} color={colors.secondaryDark} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.itemTitle}>Welfare & Social Security</Text>
+                      <Text style={styles.itemSubtitle}>10% Solidarity fund, Ayushman & pension</Text>
+                    </View>
+                    <ChevronRight size={14} color={colors.textSecondary} />
+                  </TouchableOpacity>
+
+                  {/* Co-op Patronage & My Bookings */}
                   <TouchableOpacity
                     style={styles.dropdownItemBtn}
                     onPress={handleOpenCustomerPassbook}
@@ -592,8 +606,8 @@ export const Header: React.FC<HeaderProps> = ({
                       <Sparkles size={15} color={colors.successDark} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.itemTitle}>Co-op Patronage Passbook</Text>
-                      <Text style={styles.itemSubtitle}>0% Commission & living wage savings</Text>
+                      <Text style={styles.itemTitle}>My Bookings & Activity</Text>
+                      <Text style={styles.itemSubtitle}>0% Commission, invoices & QR passes</Text>
                     </View>
                     <ChevronRight size={14} color={colors.textSecondary} />
                   </TouchableOpacity>
@@ -665,7 +679,11 @@ export const Header: React.FC<HeaderProps> = ({
               </View>
 
               {/* Dark Mode Toggle */}
-              <View style={styles.dropdownRowItem}>
+              <TouchableOpacity
+                style={styles.dropdownRowItem}
+                onPress={toggleTheme}
+                activeOpacity={0.75}
+              >
                 <View style={[styles.itemIconWrap, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}>
                   <Text style={{ fontSize: 13 }}>{isDark ? '🌙' : '☀️'}</Text>
                 </View>
@@ -676,7 +694,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </Text>
                 </View>
                 <ThemeToggle />
-              </View>
+              </TouchableOpacity>
 
               {/* Language Switch */}
               <TouchableOpacity
@@ -866,6 +884,118 @@ export const Header: React.FC<HeaderProps> = ({
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Interactive Cooperative Ombudsman Modal */}
+      <Modal
+        visible={ombudsmanModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOmbudsmanModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setOmbudsmanModalVisible(false)}>
+          <Pressable style={styles.actionSheetBox} onPress={e => e.stopPropagation()}>
+            <View style={styles.actionSheetHeader}>
+              <View style={styles.actionSheetTitleRow}>
+                <View style={[styles.sosIconWrap, { backgroundColor: '#ede9fe' }]}>
+                  <Scale size={20} color="#7c3aed" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.actionSheetTitle}>Cooperative Ombudsman Desk</Text>
+                  <Text style={styles.actionSheetSub}>Statutory 12-Hour Binding Dispute Resolution</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setOmbudsmanModalVisible(false)} style={styles.closeBtn}>
+                <X size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Statutory Law Notice Banner */}
+            <View style={[styles.sosDistressBanner, { backgroundColor: isDark ? 'rgba(124, 58, 237, 0.12)' : '#f5f3ff', borderColor: isDark ? 'rgba(124, 58, 237, 0.3)' : '#ddd6fe' }]}>
+              <View style={styles.distressHeader}>
+                <Scale size={14} color="#7c3aed" />
+                <Text style={[styles.distressTitle, { color: '#7c3aed' }]}>Rajasthan Co-op Societies Act §58</Text>
+                <View style={[styles.livePulseBadge, { backgroundColor: '#ede9fe' }]}>
+                  <Text style={[styles.livePulseText, { color: '#7c3aed' }]}>12h SLA</Text>
+                </View>
+              </View>
+              <Text style={styles.distressCoords}>Autonomous Cooperative Arbitration Authority</Text>
+              <Text style={styles.distressSub}>
+                Every citizen patron and artisan member is guaranteed a statutory binding resolution within 12 hours for billing, workmanship, or conduct disputes.
+              </Text>
+            </View>
+
+            {/* Interactive Channels */}
+            <Text style={styles.sosSectionHeader}>STATUTORY DISPUTE CHANNELS</Text>
+
+            <TouchableOpacity
+              style={[styles.sosActionRowPrimary, { backgroundColor: '#7c3aed' }]}
+              onPress={() => openDialer('18007242527')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.actionIconPrimary}>
+                <PhoneCall size={18} color="#ffffff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitlePrimary}>Call Ombudsman Grievance Desk</Text>
+                <Text style={styles.actionSubPrimary}>1800-SAHAKAR (1800-724-2527) · Toll Free 24x7</Text>
+              </View>
+              <ChevronRight size={16} color="#ffffff" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sosActionRow}
+              onPress={() =>
+                openWhatsApp(
+                  '911412227000',
+                  `⚖️ COOPERATIVE OMBUDSMAN GRIEVANCE REQUEST:\nPatron/Member: ${userMeta.name} (${userMeta.subTitle})\nRole: ${role}\nRequesting statutory 12-hour binding dispute resolution regarding a service matter.`
+                )
+              }
+              activeOpacity={0.8}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#dcfce7' }]}>
+                <MessageSquare size={18} color="#16a34a" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitle}>WhatsApp Grievance Officer</Text>
+                <Text style={styles.actionSub}>Direct desk at Registrar of Cooperatives, Jaipur Division</Text>
+              </View>
+              <ChevronRight size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sosActionRow}
+              onPress={() => {
+                setOmbudsmanModalVisible(false);
+                if (rootNavigationRef.isReady()) {
+                  if (role === 'customer') {
+                    rootNavigationRef.navigate('CustomerProfile');
+                  } else if (role === 'worker') {
+                    rootNavigationRef.navigate('WorkerProfile');
+                  }
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: colors.primaryLight }]}>
+                <User size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.actionTitle}>Open Dispute Portal & History</Text>
+                <Text style={styles.actionSub}>View past arbitration awards, refunds & ticket status</Text>
+              </View>
+              <ChevronRight size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalDismissBtn}
+              onPress={() => setOmbudsmanModalVisible(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.modalDismissBtnText}>{t('common.close', 'Dismiss & Close')}</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -1027,7 +1157,7 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       elevation: 16,
     },
     dropdownScroll: {
-      maxHeight: 460,
+      maxHeight: 520,
     },
     dropdownProfileHeader: {
       flexDirection: 'row',

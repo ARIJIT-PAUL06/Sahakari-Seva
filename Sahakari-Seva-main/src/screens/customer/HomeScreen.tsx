@@ -393,12 +393,12 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       matchedActions.push({
         id: 'action-welfare',
         title: 'Worker-Owned Cooperative Welfare',
-        subtitle: 'Zero commission guarantee — 100% of fair wages go to local artisans',
+        subtitle: 'Zero commission guarantee — 100% of fair wages go to local artisans & 10% solidarity corpus',
         badge: 'COOPERATIVE',
         badgeColor: '#087F5B',
         badgeBg: '#E8F7F1',
         icon: ShieldCheck,
-        onPress: () => navigation.navigate('Search'),
+        onPress: () => navigation.navigate('WorkerWelfare'),
       });
     }
 

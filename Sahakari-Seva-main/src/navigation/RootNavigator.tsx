@@ -216,6 +216,7 @@ function CustomerStackNavigator() {
       <Stack.Screen name="BookingCreate" component={BookingCreateScreen} />
       <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <Stack.Screen name="Invoice" component={InvoiceScreen} />
+      <Stack.Screen name="WorkerWelfare" component={WorkerWelfareScreen} />
     </Stack.Navigator>
   );
 }
@@ -297,6 +298,7 @@ function WorkerStackNavigator() {
       <Stack.Screen name="WorkerJobDetail" component={WorkerJobDetailScreen} />
       <Stack.Screen name="WorkerProfile" component={WorkerProfileScreen} />
       <Stack.Screen name="WorkerWelfare" component={WorkerWelfareScreen} />
+      <Stack.Screen name="WorkerLocation" component={WorkerLocationScreen} />
     </Stack.Navigator>
   );
 }
