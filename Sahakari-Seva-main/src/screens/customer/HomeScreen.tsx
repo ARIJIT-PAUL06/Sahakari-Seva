@@ -271,10 +271,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       const id = w.id || w.workerId;
       if (seenWorkerIds.has(id)) return;
 
-      const name = (w.profile?.full_name || w.workerName || '').trim();
+      const name = (w.profile?.full_name || w.name || w.workerName || '').trim();
       const service = (w.skill_category || w.service || '').trim();
-      const area = (w.service_area || w.serviceArea || w.city || 'Jaipur').trim();
-      const pincode = (w.pincode || '').trim();
+      const area = (w.service_area || w.serviceArea || w.approximate_location?.area || w.city || 'Jaipur').trim();
+      const pincode = (w.pincode || w.approximate_location?.pincode || '').trim();
       const skills: string[] = w.skills || [];
       const bio = (w.bio || '').trim();
       const cert = (w.certification_name || '').trim();
@@ -319,7 +319,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           service: service || 'Service Professional',
           rating: w.rating || w.average_rating || 4.8,
           serviceArea: area,
-          hourlyRate: w.basePrice || w.hourly_or_base_rate || 249,
+          hourlyRate: w.hourly_rate || w.hourly_or_base_rate || w.basePrice || 249,
           matchReason,
           rawWorker: w,
         });
