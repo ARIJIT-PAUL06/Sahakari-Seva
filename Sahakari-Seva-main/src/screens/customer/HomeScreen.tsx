@@ -150,29 +150,31 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
-        {/* Full-width Hero Section in exact aspect ratio */}
-        <TouchableOpacity
-          activeOpacity={0.95}
-          onPress={() => {
-            const route = HERO_BANNERS[currentBannerIndex]?.route || 'Search';
-            navigation.navigate(route);
-          }}
-          style={styles.heroSection}
-        >
-          <Image
-            source={HERO_BANNERS[currentBannerIndex]?.image}
-            style={styles.heroImage}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
+        {/* Hero Section with top gap, exact aspect ratio, and 3D floating shadow */}
+        <FadeInView delay={0} distance={10} duration={320}>
+          <View style={styles.heroShadowWrapper}>
+            <TouchableOpacity
+              activeOpacity={0.94}
+              onPress={() => {
+                const route = HERO_BANNERS[currentBannerIndex]?.route || 'Search';
+                navigation.navigate(route);
+              }}
+              style={styles.heroSection}
+            >
+              <Image
+                source={HERO_BANNERS[currentBannerIndex]?.image}
+                style={styles.heroImage}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          </View>
+        </FadeInView>
 
-        {/* Rest of page hanging just below the hero section */}
-        <View style={styles.bodyContent}>
-
-        {/* Categories Grid with Trade-Specific Vibrant Gradients */}
-        <FadeInView delay={160} distance={14} duration={360}>
+        {/* Categories Grid with 3D Glassmorphic floating tiles */}
+        <FadeInView delay={140} distance={12} duration={340}>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
@@ -197,7 +199,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 const title = translateTrade(cat.name);
 
                 return (
-                  <FadeInView key={cat.id} delay={140 + idx * 35} distance={10} duration={260} style={styles.categoryCardWrap}>
+                  <FadeInView key={cat.id} delay={140 + idx * 30} distance={10} duration={260} style={styles.categoryCardWrap}>
                     <ScalePressable onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })} scaleTo={0.93}>
                       <View style={styles.categoryCard}>
                         <View style={styles.catImageWrap}>
@@ -205,7 +207,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                             <Image
                               source={catImg}
                               style={styles.catImage}
-                              resizeMode="cover"
+                              resizeMode="contain"
                             />
                           ) : (
                             <Text style={{ fontSize: 24 }}>🛠️</Text>
@@ -223,8 +225,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         </FadeInView>
 
-        {/* Nearby Workers Section with Lively Match Badges */}
-        <FadeInView delay={280} distance={14} duration={360}>
+        {/* Nearby Workers Section with 3D elevation */}
+        <FadeInView delay={240} distance={14} duration={360}>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
@@ -260,10 +262,9 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </FadeInView>
 
         {/* Cooperative App Footer with Fair Wage Breakdown, Policies & Contacts */}
-        <FadeInView delay={360} distance={14} duration={360}>
+        <FadeInView delay={320} distance={14} duration={360}>
           <Footer />
         </FadeInView>
-        </View>
       </ScrollView>
     </View>
   );
@@ -278,58 +279,83 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 32,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 36,
+  },
+  heroShadowWrapper: {
+    width: '100%',
+    aspectRatio: 1024 / 402,
+    marginBottom: 24,
+    borderRadius: 20,
+    backgroundColor: isDark ? '#080d19' : '#ffffff',
+    shadowColor: isDark ? '#000000' : '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: isDark ? 0.70 : 0.18,
+    shadowRadius: 20,
+    elevation: 8,
   },
   heroSection: {
     width: '100%',
-    aspectRatio: 1024 / 402,
-    backgroundColor: isDark ? '#06130d' : '#f4fbf6',
+    height: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.95)',
+    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.35)' : '#ffffff',
+    borderBottomColor: isDark ? 'rgba(0, 0, 0, 0.40)' : 'rgba(203, 213, 225, 0.60)',
   },
   heroImage: {
     width: '100%',
     height: '100%',
     aspectRatio: 1024 / 402,
   },
-  bodyContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
   section: {
-    marginBottom: 22,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
     flex: 1,
     marginRight: 10,
   },
   sectionAccentBar: {
-    width: 4,
-    height: 16,
-    borderRadius: 2,
+    width: 4.5,
+    height: 18,
+    borderRadius: 3,
     flexShrink: 0,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16.5,
     fontWeight: '800',
     color: colors.textPrimary,
     flexShrink: 1,
+    letterSpacing: 0.2,
   },
   seeAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
     flexShrink: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(16, 185, 129, 0.08)',
   },
   seeAllText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.primary,
   },
@@ -337,49 +363,63 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: 12,
+    rowGap: 14,
   },
   categoryCardWrap: {
     width: '23%',
   },
   categoryCard: {
-    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : 'rgba(255, 255, 255, 0.82)',
+    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.76)' : 'rgba(255, 255, 255, 0.95)',
     borderRadius: 18,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.2,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.90)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDark ? 0.35 : 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.98)',
+    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.32)' : '#ffffff',
+    borderLeftColor: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.90)',
+    borderRightColor: isDark ? 'rgba(0, 0, 0, 0.30)' : 'rgba(203, 213, 225, 0.60)',
+    borderBottomColor: isDark ? 'rgba(0, 0, 0, 0.50)' : 'rgba(203, 213, 225, 0.70)',
+    shadowColor: isDark ? '#000000' : '#0f172a',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: isDark ? 0.55 : 0.14,
+    shadowRadius: 14,
+    elevation: 6,
   },
   catImageWrap: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
+    width: 62,
+    height: 62,
+    borderRadius: 18,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 7,
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(241, 245, 249, 0.70)',
+    marginBottom: 8,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#ffffff',
+    borderWidth: 1.2,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(226, 232, 240, 0.90)',
+    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.20)' : '#ffffff',
+    borderBottomColor: isDark ? 'rgba(0, 0, 0, 0.25)' : 'rgba(203, 213, 225, 0.50)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.40 : 0.12,
+    shadowRadius: 8,
+    elevation: 3,
   },
   catImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 15,
+    borderRadius: 17,
   },
   catTitle: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.textPrimary,
     textAlign: 'center',
     minHeight: 28,
     lineHeight: 14,
     paddingHorizontal: 2,
+    letterSpacing: 0.15,
   },
 });
 

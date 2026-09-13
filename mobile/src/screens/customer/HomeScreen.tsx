@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -58,6 +59,41 @@ const categoryIcons: Record<string, any> = {
   'Caregiving & Nursing': HeartPulse,
 };
 
+// ==============================================================================
+// 3D CATEGORY ASSETS MAP
+// ==============================================================================
+const CATEGORY_IMAGES: Record<string, any> = {
+  'Electrical': require('../../../assets/categories/category-electrical.png'),
+  'Plumbing': require('../../../assets/categories/category-plumbing.png'),
+  'Carpentry': require('../../../assets/categories/category-carpentry.png'),
+  'Painting': require('../../../assets/categories/category-painting.png'),
+  'Cleaning & Sanitization': require('../../../assets/categories/category-cleaning.png'),
+  'Gardening & Landscaping': require('../../../assets/categories/category-gardening.png'),
+  'Appliance Repair': require('../../../assets/categories/category-appliance.png'),
+  'AC Repair & Servicing': require('../../../assets/categories/category-ac.png'),
+};
+
+// ==============================================================================
+// HERO BANNER SLIDER CONFIGURATION
+// Add more banner objects here to automatically rotate them on the homepage.
+// ==============================================================================
+export interface HeroBannerItem {
+  id: string;
+  image: any;
+  route?: string;
+  title?: string;
+}
+
+export const HERO_BANNERS: HeroBannerItem[] = [
+  {
+    id: 'hero-1',
+    image: require('../../../assets/hero-banner-1.png'),
+    route: 'Search',
+    title: 'Trusted work. Shared prosperity.',
+  },
+  // Additional banners provided by user will auto-cycle in this slider
+];
+
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   useAppBackHandler({ homeRouteName: 'Home', isHome: true });
   const { t } = useTranslation();
@@ -69,6 +105,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [userLocation, setUserLocation] = useState({ latitude: 26.9017, longitude: 75.7925 });
   const [locationName, setLocationName] = useState('C-Scheme, Jaipur (302001)');
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+
+  // Auto-change hero banner every 5 seconds if multiple banners exist
+  useEffect(() => {
+    if (HERO_BANNERS.length <= 1) return;
+    const bannerTimer = setInterval(() => {
+      setCurrentBannerIndex((prev) => (prev + 1) % HERO_BANNERS.length);
+    }, 5000);
+    return () => clearInterval(bannerTimer);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -104,74 +150,31 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
-        {/* GPS Live Radar Location Bar */}
+        {/* Hero Section with top gap, exact aspect ratio, and 3D floating shadow */}
         <FadeInView delay={0} distance={10} duration={320}>
-          <TouchableOpacity
-            style={styles.locationBanner}
-            onPress={() => navigation.navigate('Map')}
-            activeOpacity={0.82}
-          >
-            <View style={styles.locationLeft}>
-              <View style={styles.radarWrap}>
-                <PulseDot color="#10b981" size={8} ringScale={2.4} duration={1600} />
-              </View>
-              <View style={styles.locationTextWrap}>
-                <Text style={styles.locationLabel}>{t('home.current_location', 'LIVE GPS COVERAGE')}</Text>
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {locationName}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.mapLink}>
-              <Map size={13} color={colors.primary} />
-              <Text style={styles.mapLinkText}>{t('home.view_map')}</Text>
-            </View>
-          </TouchableOpacity>
-        </FadeInView>
-
-        {/* Dynamic Emergency Service Banner with LinearGradient & Pulsing Beacon */}
-        <FadeInView delay={80} distance={12} duration={340}>
-          <PulseView scaleTo={1.012} duration={2200}>
-            <LinearGradient
-              colors={isDark ? ['#3b0712', '#1f040a'] : ['#fff1f2', '#ffe4e6']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.emergencyCard}
+          <View style={styles.heroShadowWrapper}>
+            <TouchableOpacity
+              activeOpacity={0.94}
+              onPress={() => {
+                const route = HERO_BANNERS[currentBannerIndex]?.route || 'Search';
+                navigation.navigate(route);
+              }}
+              style={styles.heroSection}
             >
-              <View style={styles.emergencyHeaderRow}>
-                <View style={styles.emergencyTagRow}>
-                  <PulseDot color={colors.danger} size={7} ringScale={2.4} duration={1200} />
-                  <Text style={styles.emergencyTagText}>EMERGENCY 24/7</Text>
-                </View>
-                <View style={styles.emergencySlaBadge}>
-                  <Clock size={11} color={colors.dangerDark} />
-                  <Text style={styles.emergencySlaText}>&lt; 15 min response</Text>
-                </View>
-              </View>
-
-              <Text style={styles.emergencyTitle}>{t('home.emergency_banner_title')}</Text>
-              <Text style={styles.emergencyDesc}>{t('home.emergency_banner_desc')}</Text>
-
-              <ScalePressable onPress={() => navigation.navigate('Search', { emergencyOnly: true })} scaleTo={0.97}>
-                <LinearGradient
-                  colors={['#e11d48', '#be123c']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.emergencyBtn}
-                >
-                  <Zap size={16} color="#ffffff" fill="#ffffff" />
-                  <Text style={styles.emergencyBtnText}>{t('home.emergency_btn')}</Text>
-                  <ChevronRight size={14} color="#ffffff" />
-                </LinearGradient>
-              </ScalePressable>
-            </LinearGradient>
-          </PulseView>
+              <Image
+                source={HERO_BANNERS[currentBannerIndex]?.image}
+                style={styles.heroImage}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          </View>
         </FadeInView>
 
-        {/* Categories Grid with Trade-Specific Vibrant Gradients */}
-        <FadeInView delay={160} distance={14} duration={360}>
+        {/* Categories Grid with 3D Glassmorphic floating tiles */}
+        <FadeInView delay={140} distance={12} duration={340}>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
@@ -192,30 +195,27 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
             <View style={styles.categoryGrid}>
               {categories.slice(0, 8).map((cat, idx) => {
-                const IconComp = categoryIcons[cat.name] || Zap;
+                const catImg = CATEGORY_IMAGES[cat.name];
                 const title = translateTrade(cat.name);
-                const tradeTheme = getTradeTheme(cat.name, isDark);
 
                 return (
-                  <FadeInView key={cat.id} delay={180 + idx * 50} distance={10} duration={280} style={styles.categoryCardWrap}>
-                    <ScalePressable onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })} scaleTo={0.92}>
-                      <View style={[styles.categoryCard, { borderColor: tradeTheme.border }]}>
-                        <LinearGradient
-                          colors={tradeTheme.gradient}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.iconCircle}
-                        >
-                          <IconComp size={18} color="#ffffff" />
-                        </LinearGradient>
+                  <FadeInView key={cat.id} delay={140 + idx * 30} distance={10} duration={260} style={styles.categoryCardWrap}>
+                    <ScalePressable onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })} scaleTo={0.93}>
+                      <View style={styles.categoryCard}>
+                        <View style={styles.catImageWrap}>
+                          {catImg ? (
+                            <Image
+                              source={catImg}
+                              style={styles.catImage}
+                              resizeMode="contain"
+                            />
+                          ) : (
+                            <Text style={{ fontSize: 24 }}>🛠️</Text>
+                          )}
+                        </View>
                         <Text style={styles.catTitle} numberOfLines={2}>
                           {title}
                         </Text>
-                        <View style={[styles.catPriceBadge, { backgroundColor: tradeTheme.badgeBg }]}>
-                          <Text style={[styles.catPrice, { color: tradeTheme.badgeText }]}>
-                            ₹{cat.base_price}
-                          </Text>
-                        </View>
                       </View>
                     </ScalePressable>
                   </FadeInView>
@@ -225,8 +225,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         </FadeInView>
 
-        {/* Nearby Workers Section with Lively Match Badges */}
-        <FadeInView delay={280} distance={14} duration={360}>
+        {/* Nearby Workers Section with 3D elevation */}
+        <FadeInView delay={240} distance={14} duration={360}>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
@@ -262,7 +262,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </FadeInView>
 
         {/* Cooperative App Footer with Fair Wage Breakdown, Policies & Contacts */}
-        <FadeInView delay={360} distance={14} duration={360}>
+        <FadeInView delay={320} distance={14} duration={360}>
           <Footer />
         </FadeInView>
       </ScrollView>
@@ -279,177 +279,83 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  locationBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingVertical: 10,
-    paddingHorizontal: 13,
-    borderRadius: 14,
-    marginBottom: 16,
-    borderWidth: 1.2,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  locationLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  radarWrap: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationTextWrap: {
-    flex: 1,
-  },
-  locationLabel: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    color: '#10b981',
-    marginBottom: 1,
-  },
-  locationText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  mapLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  mapLinkText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: colors.primaryDark,
-  },
-  emergencyCard: {
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1.5,
-    borderColor: isDark ? '#7f1d1d' : '#fca5a5',
-    marginBottom: 20,
-    shadowColor: colors.danger,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  emergencyHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  emergencyTagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  emergencyTagText: {
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-    color: colors.danger,
-  },
-  emergencySlaBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ffe4e6',
-    paddingHorizontal: 8,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  emergencySlaText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: colors.dangerDark,
-  },
-  emergencyTitle: {
-    fontSize: 15.5,
-    fontWeight: '800',
-    color: colors.textPrimary,
-  },
-  emergencyDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 17,
-  },
-  emergencyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 13,
-    paddingVertical: 10.5,
     paddingHorizontal: 16,
-    borderRadius: 10,
-    gap: 6,
-    shadowColor: colors.danger,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
+    paddingTop: 18,
+    paddingBottom: 36,
   },
-  emergencyBtnText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#ffffff',
+  heroShadowWrapper: {
+    width: '100%',
+    aspectRatio: 1024 / 402,
+    marginBottom: 24,
+    borderRadius: 20,
+    backgroundColor: isDark ? '#080d19' : '#ffffff',
+    shadowColor: isDark ? '#000000' : '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: isDark ? 0.70 : 0.18,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  heroSection: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.95)',
+    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.35)' : '#ffffff',
+    borderBottomColor: isDark ? 'rgba(0, 0, 0, 0.40)' : 'rgba(203, 213, 225, 0.60)',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+    aspectRatio: 1024 / 402,
   },
   section: {
-    marginBottom: 22,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
     flex: 1,
     marginRight: 10,
   },
   sectionAccentBar: {
-    width: 4,
-    height: 16,
-    borderRadius: 2,
+    width: 4.5,
+    height: 18,
+    borderRadius: 3,
     flexShrink: 0,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16.5,
     fontWeight: '800',
     color: colors.textPrimary,
     flexShrink: 1,
+    letterSpacing: 0.2,
   },
   seeAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
     flexShrink: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(16, 185, 129, 0.08)',
   },
   seeAllText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.primary,
   },
@@ -457,55 +363,63 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: 11,
+    rowGap: 14,
   },
   categoryCardWrap: {
     width: '23%',
   },
   categoryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    paddingVertical: 10,
+    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.76)' : 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 18,
+    paddingVertical: 12,
     paddingHorizontal: 4,
     alignItems: 'center',
-    borderWidth: 1.2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(255, 255, 255, 0.98)',
+    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.32)' : '#ffffff',
+    borderLeftColor: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.90)',
+    borderRightColor: isDark ? 'rgba(0, 0, 0, 0.30)' : 'rgba(203, 213, 225, 0.60)',
+    borderBottomColor: isDark ? 'rgba(0, 0, 0, 0.50)' : 'rgba(203, 213, 225, 0.70)',
+    shadowColor: isDark ? '#000000' : '#0f172a',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: isDark ? 0.55 : 0.14,
+    shadowRadius: 14,
+    elevation: 6,
   },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  catImageWrap: {
+    width: 62,
+    height: 62,
+    borderRadius: 18,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#ffffff',
+    borderWidth: 1.2,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(226, 232, 240, 0.90)',
+    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.20)' : '#ffffff',
+    borderBottomColor: isDark ? 'rgba(0, 0, 0, 0.25)' : 'rgba(203, 213, 225, 0.50)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.40 : 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  catImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 17,
   },
   catTitle: {
-    fontSize: 10.5,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     color: colors.textPrimary,
     textAlign: 'center',
     minHeight: 28,
     lineHeight: 14,
-    paddingHorizontal: 1,
-  },
-  catPriceBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 6,
-    marginTop: 4,
-  },
-  catPrice: {
-    fontSize: 9.5,
-    fontWeight: '800',
+    paddingHorizontal: 2,
+    letterSpacing: 0.15,
   },
 });
 
