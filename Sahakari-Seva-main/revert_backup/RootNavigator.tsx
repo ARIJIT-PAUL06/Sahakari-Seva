@@ -91,20 +91,20 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const makeTabBarBase = (colors: Palette, isDark: boolean) => ({
   headerShown: false,
-  tabBarActiveTintColor: '#087F5B',
-  tabBarInactiveTintColor: '#667085',
+  tabBarActiveTintColor: colors.primary,
+  tabBarInactiveTintColor: colors.textMuted,
   tabBarStyle: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E3E8E5',
-    height: 64,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1.2,
+    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0',
+    height: 66,
     paddingBottom: 8,
     paddingTop: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 6,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 8,
   },
 });
 
@@ -126,13 +126,13 @@ function TabIcon({
       style={{
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 3,
+        paddingHorizontal: 10,
+        paddingVertical: 2.5,
         borderRadius: 12,
-        backgroundColor: focused ? '#E8F7F1' : 'transparent',
+        backgroundColor: focused ? colors.primaryLight : 'transparent',
       }}
     >
-      <Icon size={size} color={focused ? '#087F5B' : '#667085'} strokeWidth={focused ? 2.2 : 1.8} />
+      <Icon size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
     </View>
   );
 }

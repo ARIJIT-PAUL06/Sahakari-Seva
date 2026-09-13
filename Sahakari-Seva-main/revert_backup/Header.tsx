@@ -337,14 +337,14 @@ export const Header: React.FC<HeaderProps> = ({
           <View style={styles.brandTextWrap}>
             <View style={styles.titleWithBadge}>
               <Text style={styles.brandName} numberOfLines={1} ellipsizeMode="tail">
-                {title || 'Sahakari Seva'}
+                {title || t('app_name')}
               </Text>
               <View style={styles.coopTag}>
                 <Text style={styles.coopTagText}>CO-OP</Text>
               </View>
             </View>
             <Text style={styles.brandSubtitle} numberOfLines={1} ellipsizeMode="tail">
-              {subtitle || '📍 Jaipur • Delivering services near you'}
+              {subtitle || t('auth.brand_subtitle')}
             </Text>
           </View>
         </View>
@@ -938,32 +938,30 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       minWidth: 0,
     },
     brandName: {
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: 12.5,
+      fontWeight: '800',
       color: colors.textPrimary,
       flexShrink: 1,
-      letterSpacing: -0.2,
     },
     coopTag: {
-      backgroundColor: colors.primaryLight,
-      paddingHorizontal: 4,
-      paddingVertical: 1.5,
-      borderRadius: 4,
+      backgroundColor: colors.secondaryLight,
+      paddingHorizontal: 3,
+      paddingVertical: 1,
+      borderRadius: 3,
       borderWidth: 1,
-      borderColor: colors.primaryLight,
+      borderColor: colors.secondaryLight,
       flexShrink: 0,
     },
     coopTagText: {
-      fontSize: 8,
+      fontSize: 7,
       fontWeight: '800',
-      color: colors.primary,
-      letterSpacing: 0.5,
+      color: colors.secondaryDark,
     },
     brandSubtitle: {
-      fontSize: 10,
+      fontSize: 9,
       color: colors.textSecondary,
       fontWeight: '500',
-      marginTop: 1,
+      marginTop: 0.5,
     },
     actionRow: {
       flexDirection: 'row',
@@ -973,22 +971,21 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     },
     profileBtn: {
       position: 'relative',
-      padding: 1,
+      padding: 2,
     },
     profileAvatar: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(227, 232, 229, 0.90)',
-      shadowColor: '#142238',
+      borderWidth: 1.5,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.25)' : colors.primary,
+      shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      elevation: 2,
+      shadowOpacity: 0.15,
+      shadowRadius: 3,
+      elevation: 3,
     },
     profileAvatarText: {
       fontSize: 11,
@@ -1002,7 +999,7 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       width: 9,
       height: 9,
       borderRadius: 5,
-      backgroundColor: '#087F5B',
+      backgroundColor: '#10b981',
       borderWidth: 1.5,
       borderColor: colors.surface,
     },

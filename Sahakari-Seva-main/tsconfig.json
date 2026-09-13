@@ -5,5 +5,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "exclude": ["scratch", "node_modules"]
+  "exclude": ["scratch", "node_modules", "revert_backup"]
 }

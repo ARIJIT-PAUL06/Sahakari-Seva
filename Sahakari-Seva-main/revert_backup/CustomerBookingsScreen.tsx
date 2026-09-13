@@ -35,12 +35,11 @@ export const CustomerBookingsScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const statusColors: Record<string, { bg: string; text: string }> = {
-    pending: { bg: '#FFF4DD', text: '#B86A00' },     // REQUESTED
-    requested: { bg: '#FFF4DD', text: '#B86A00' },   // REQUESTED
-    accepted: { bg: '#EAF2FF', text: '#2563EB' },    // IN PROGRESS / CONFIRMED
-    in_progress: { bg: '#EAF2FF', text: '#2563EB' }, // IN PROGRESS
-    completed: { bg: '#E8F7F1', text: '#087F5B' },   // COMPLETED
-    cancelled: { bg: '#FDECEF', text: '#C62845' },   // CANCELLED
+    pending: { bg: isDark ? '#3d2e05' : '#fef3c7', text: isDark ? '#fbbf24' : '#d97706' },
+    accepted: { bg: isDark ? '#0c2d48' : '#e0f2fe', text: isDark ? '#38bdf8' : '#0284c7' },
+    in_progress: { bg: isDark ? '#1a2e05' : '#ecfdf5', text: isDark ? '#4ade80' : '#16a34a' },
+    completed: { bg: isDark ? '#1e1b4b' : '#ede9fe', text: isDark ? '#a78bfa' : '#7c3aed' },
+    cancelled: { bg: isDark ? '#3f1212' : '#fee2e2', text: isDark ? '#f87171' : '#dc2626' }
   };
 
   const loadBookings = async () => {
@@ -190,59 +189,53 @@ const createStyles = (colors: Palette) => StyleSheet.create({
   },
   bookingCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 14,
-    shadowColor: '#142238',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: 12
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 8
   },
   bookingCode: {
     fontSize: 14,
-    fontWeight: '700',
-    color: colors.textPrimary,
+    fontWeight: '800',
+    color: colors.textPrimary
   },
   statusBadge: {
-    paddingHorizontal: 9,
-    paddingVertical: 3.5,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
   },
   statusText: {
     fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+    fontWeight: '800'
   },
   descText: {
     fontSize: 13,
     color: colors.textSecondary,
     lineHeight: 18,
-    marginBottom: 10,
+    marginBottom: 10
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    marginBottom: 12,
+    marginBottom: 12
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 4
   },
   metaText: {
     fontSize: 11,
     color: colors.textMuted,
-    fontWeight: '500',
+    fontWeight: '500'
   },
   cardFooter: {
     flexDirection: 'row',
@@ -250,17 +243,17 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.border
   },
   amountText: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: colors.textPrimary
   },
   paymentStatusText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#087F5B',
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.success
   },
   emptyBox: {
     alignItems: 'center',
@@ -299,35 +292,35 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FFF4DD',
-    paddingVertical: 5,
-    paddingHorizontal: 9,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 6,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: 'rgba(243, 154, 36, 0.40)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
   },
   actionNeededPillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#B86A00',
+    color: '#d97706',
   },
   approvedPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#E8F7F1',
-    paddingVertical: 5,
-    paddingHorizontal: 9,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 6,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: 'rgba(8, 127, 91, 0.35)',
+    borderColor: 'rgba(16, 185, 129, 0.35)',
   },
   approvedPillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#087F5B',
+    color: '#10b981',
   },
   emergencyPill: {
     flexDirection: 'row',

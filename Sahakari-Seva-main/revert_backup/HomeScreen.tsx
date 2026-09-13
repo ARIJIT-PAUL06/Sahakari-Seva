@@ -45,8 +45,6 @@ import {
   Map,
   Clock,
   ChevronRight,
-  Search,
-  ArrowRight,
 } from 'lucide-react-native';
 
 const categoryIcons: Record<string, any> = {
@@ -74,17 +72,6 @@ const CATEGORY_IMAGES: Record<string, any> = {
   'Gardening & Landscaping': require('../../../assets/categories/category-gardening.png'),
   'Appliance Repair': require('../../../assets/categories/category-appliance.png'),
   'AC Repair & Servicing': require('../../../assets/categories/category-ac.png'),
-};
-
-const CATEGORY_PRICES: Record<string, string> = {
-  'Electrical': 'From ₹299',
-  'Plumbing': 'From ₹249',
-  'Carpentry': 'From ₹299',
-  'Painting': 'From ₹349',
-  'Cleaning & Sanitization': 'From ₹199',
-  'Gardening & Landscaping': 'From ₹249',
-  'Appliance Repair': 'From ₹299',
-  'AC Repair & Servicing': 'From ₹399',
 };
 
 // ==============================================================================
@@ -184,28 +171,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
-        {/* 1. Large Rounded Search Field */}
-        <FadeInView delay={0} distance={8} duration={260}>
-          <TouchableOpacity
-            activeOpacity={0.88}
-            onPress={() => navigation.navigate('Search')}
-            style={styles.searchBar}
-          >
-            <View style={styles.searchIconWrap}>
-              <Search size={18} color="#087F5B" />
-            </View>
-            <View style={styles.searchPlaceholderWrap}>
-              <Text style={styles.searchMainText}>What do you need help with?</Text>
-              <Text style={styles.searchSubText}>Search electrical, cleaning, AC...</Text>
-            </View>
-            <View style={styles.searchCtaChip}>
-              <ArrowRight size={13} color="#087F5B" />
-            </View>
-          </TouchableOpacity>
-        </FadeInView>
-
-        {/* 2. Hero Section with auto-scroll carousel, exact aspect ratio, and Primary CTA */}
-        <FadeInView delay={60} distance={10} duration={320}>
+        {/* Hero Section with auto-scroll carousel, top gap, exact aspect ratio, and 3D floating shadow */}
+        <FadeInView delay={0} distance={10} duration={320}>
           <View
             style={styles.heroShadowWrapper}
             onLayout={(e) => {
@@ -280,31 +247,16 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               )}
             </View>
           </View>
-
-          {/* Hero Action Bar: Message + Primary CTA in Cooperative Green #087F5B */}
-          <View style={styles.heroActionRow}>
-            <View style={styles.heroActionTextWrap}>
-              <Text style={styles.heroActionTitle}>Trusted work. Shared prosperity.</Text>
-              <Text style={styles.heroActionSubtitle}>100% Worker-Owned Cooperative</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.heroCtaBtn}
-              onPress={() => navigation.navigate('Search')}
-              activeOpacity={0.88}
-            >
-              <Text style={styles.heroCtaBtnText}>Find a professional →</Text>
-            </TouchableOpacity>
-          </View>
         </FadeInView>
 
-        {/* 3. Cooperative Certified Services */}
-        <FadeInView delay={120} distance={12} duration={320}>
+        {/* Categories Grid with 3D Glassmorphic floating tiles */}
+        <FadeInView delay={140} distance={12} duration={340}>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <View style={styles.sectionAccentBar} />
+                <View style={[styles.sectionAccentBar, { backgroundColor: colors.primary }]} />
                 <Text style={styles.sectionTitle} numberOfLines={1} ellipsizeMode="tail">
-                  What does your home need today?
+                  {t('home.categories_title')}
                 </Text>
               </View>
               <TouchableOpacity
@@ -312,7 +264,8 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 style={styles.seeAllBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={styles.seeAllText}>See all →</Text>
+                <Text style={styles.seeAllText}>{t('home.see_all')}</Text>
+                <ChevronRight size={13} color={colors.primary} />
               </TouchableOpacity>
             </View>
 
@@ -320,11 +273,10 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               {categories.slice(0, 8).map((cat, idx) => {
                 const catImg = CATEGORY_IMAGES[cat.name];
                 const title = translateTrade(cat.name);
-                const priceText = CATEGORY_PRICES[cat.name] || 'Fair Rates';
 
                 return (
-                  <FadeInView key={cat.id} delay={120 + idx * 25} distance={8} duration={260} style={styles.categoryCardWrap}>
-                    <ScalePressable onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })} scaleTo={0.94}>
+                  <FadeInView key={cat.id} delay={140 + idx * 30} distance={10} duration={260} style={styles.categoryCardWrap}>
+                    <ScalePressable onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })} scaleTo={0.93}>
                       <View style={styles.categoryCard}>
                         <View style={styles.catImageWrap}>
                           {catImg ? (
@@ -340,9 +292,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                         <Text style={styles.catTitle} numberOfLines={2}>
                           {title}
                         </Text>
-                        <View style={styles.catPriceChip}>
-                          <Text style={styles.catPriceText}>{priceText}</Text>
-                        </View>
                       </View>
                     </ScalePressable>
                   </FadeInView>
@@ -352,30 +301,44 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </View>
         </FadeInView>
 
-        {/* 4. Emergency Service */}
-        <FadeInView delay={200} distance={12} duration={300}>
-          <TouchableOpacity
-            activeOpacity={0.92}
-            onPress={() => navigation.navigate('Search', { emergencyOnly: true })}
-            style={styles.emergencyBanner}
-          >
-            <View style={styles.emergencyLeft}>
-              <View style={styles.emergencyIconWrap}>
-                <Zap size={18} color="#D92D4F" />
+        {/* Nearby Workers Section with 3D elevation */}
+        <FadeInView delay={240} distance={14} duration={360}>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <View style={[styles.sectionAccentBar, { backgroundColor: colors.secondary }]} />
+                <Text style={styles.sectionTitle} numberOfLines={1} ellipsizeMode="tail">
+                  {t('home.nearby_title')}
+                </Text>
               </View>
-              <View style={styles.emergencyTextWrap}>
-                <Text style={styles.emergencyHeadline}>Need Emergency Repair?</Text>
-                <Text style={styles.emergencySupportText}>Electrical • Plumbing • AC</Text>
-              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Map')}
+                style={styles.seeAllBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.seeAllText}>{t('home.view_map')}</Text>
+                <ChevronRight size={13} color={colors.primary} />
+              </TouchableOpacity>
             </View>
-            <View style={styles.emergencyCta}>
-              <Text style={styles.emergencyCtaText}>Get Help Now →</Text>
-            </View>
-          </TouchableOpacity>
+
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 20 }} />
+            ) : (
+              nearbyWorkers.slice(0, 4).map((worker, idx) => (
+                <WorkerCard
+                  key={worker.workerId}
+                  worker={worker}
+                  index={idx}
+                  onPress={() => navigation.navigate('WorkerDetail', { workerId: worker.workerId })}
+                  onBook={() => navigation.navigate('BookingCreate', { worker })}
+                />
+              ))
+            )}
+          </View>
         </FadeInView>
 
-        {/* 5. Cooperative Transparency Footer */}
-        <FadeInView delay={260} distance={12} duration={320}>
+        {/* Cooperative App Footer with Fair Wage Breakdown, Policies & Contacts */}
+        <FadeInView delay={320} distance={14} duration={360}>
           <Footer />
         </FadeInView>
       </ScrollView>
@@ -393,70 +356,28 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 18,
     paddingBottom: 36,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E3E8E5',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 16,
-    shadowColor: '#142238',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0.3 : 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  searchIconWrap: {
-    marginRight: 10,
-  },
-  searchPlaceholderWrap: {
-    flex: 1,
-  },
-  searchMainText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  searchSubText: {
-    fontSize: 11,
-    fontWeight: '400',
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  searchCtaChip: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
   },
   heroShadowWrapper: {
     width: '100%',
     aspectRatio: 1024 / 402,
-    borderRadius: 18,
-    backgroundColor: isDark ? '#080d19' : '#FFFFFF',
-    shadowColor: '#142238',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: isDark ? 0.60 : 0.08,
-    shadowRadius: 16,
-    elevation: 5,
-    marginBottom: 8,
+    marginBottom: 24,
+    borderRadius: 20,
+    backgroundColor: isDark ? '#080d19' : '#ffffff',
+    shadowColor: isDark ? '#000000' : '#0f172a',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: isDark ? 0.70 : 0.18,
+    shadowRadius: 20,
+    elevation: 8,
   },
   heroSection: {
     width: '100%',
     height: '100%',
-    borderRadius: 18,
+    borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#E3E8E5',
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
   },
   heroImage: {
     width: '100%',
@@ -479,7 +400,7 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: 'rgba(0, 0, 0, 0.40)',
     paddingHorizontal: 8,
     paddingVertical: 3.5,
     borderRadius: 10,
@@ -492,63 +413,14 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   },
   paginationDotActive: {
     width: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#ffffff',
   },
   paginationDotInactive: {
     width: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.45)',
   },
-  heroActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#E3E8E5',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 22,
-    shadowColor: '#142238',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0.3 : 0.03,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  heroActionTextWrap: {
-    flex: 1,
-    marginRight: 10,
-  },
-  heroActionTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  heroActionSubtitle: {
-    fontSize: 10.5,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  heroCtaBtn: {
-    backgroundColor: '#087F5B',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 8,
-    flexShrink: 0,
-    shadowColor: '#087F5B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  heroCtaBtnText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
   section: {
-    marginBottom: 22,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -564,144 +436,82 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     marginRight: 10,
   },
   sectionAccentBar: {
-    width: 4,
-    height: 16,
-    borderRadius: 2,
-    backgroundColor: '#087F5B',
+    width: 4.5,
+    height: 18,
+    borderRadius: 3,
+    flexShrink: 0,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 15.5,
-    fontWeight: '700',
+    fontSize: 16.5,
+    fontWeight: '800',
     color: colors.textPrimary,
     flexShrink: 1,
-    letterSpacing: -0.2,
+    letterSpacing: 0.2,
   },
   seeAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 3,
+    flexShrink: 0,
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 6,
-    backgroundColor: colors.primaryLight,
+    borderRadius: 8,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(16, 185, 129, 0.08)',
   },
   seeAllText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#087F5B',
+    color: colors.primary,
   },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: 12,
+    rowGap: 14,
   },
   categoryCardWrap: {
     width: '23%',
   },
   categoryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: 10,
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    borderRadius: 18,
+    paddingVertical: 12,
     paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#E3E8E5',
-    shadowColor: '#142238',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0.35 : 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#e2e8f0',
+    shadowColor: isDark ? '#000000' : '#0f172a',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: isDark ? 0.45 : 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
   catImageWrap: {
-    width: 52,
-    height: 52,
+    width: 60,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   catImage: {
     width: '100%',
     height: '100%',
   },
   catTitle: {
-    fontSize: 10.5,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     color: colors.textPrimary,
     textAlign: 'center',
-    minHeight: 26,
-    lineHeight: 13,
+    minHeight: 28,
+    lineHeight: 14,
     paddingHorizontal: 2,
-  },
-  catPriceChip: {
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-    marginTop: 3,
-  },
-  catPriceText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#087F5B',
-  },
-  emergencyBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: isDark ? '#2d0c14' : '#FDECEF',
-    borderWidth: 1,
-    borderColor: isDark ? 'rgba(217, 45, 79, 0.40)' : 'rgba(217, 45, 79, 0.22)',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 22,
-    shadowColor: '#D92D4F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0.3 : 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  emergencyLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    marginRight: 8,
-  },
-  emergencyIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: isDark ? 'rgba(217, 45, 79, 0.25)' : 'rgba(217, 45, 79, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emergencyTextWrap: {
-    flex: 1,
-  },
-  emergencyHeadline: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#D92D4F',
-  },
-  emergencySupportText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: isDark ? '#fda4af' : '#667085',
-    marginTop: 1,
-  },
-  emergencyCta: {
-    backgroundColor: '#D92D4F',
-    paddingHorizontal: 11,
-    paddingVertical: 6.5,
-    borderRadius: 8,
-    flexShrink: 0,
-  },
-  emergencyCtaText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    letterSpacing: 0.15,
   },
 });
 
