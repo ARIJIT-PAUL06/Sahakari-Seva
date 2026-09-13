@@ -54,7 +54,16 @@ import ThemeToggle from '../../components/common/ThemeToggle';
 import { IndiaMapOverlay } from '../../components/auth/IndiaMapOverlay';
 import { IndianMonumentsSkyline } from '../../components/auth/IndianMonumentsSkyline';
 import { LoginBackgroundFlourish } from '../../components/auth/LoginBackgroundFlourish';
+import { IndiaImageBackground } from '../../components/auth/IndiaImageBackground';
 import { useTheme } from '../../theme';
+
+// ==============================================================================
+// BACKGROUND MODE TOGGLE
+// Set USE_IMAGE_BACKGROUND = true  → India map photo + blinking city dots
+// Set USE_IMAGE_BACKGROUND = false → Original gradient + Ashoka Chakra + SVG map
+// All foreground content (login card, OTP, buttons, footer) is UNCHANGED.
+// ==============================================================================
+const USE_IMAGE_BACKGROUND = true;
 
 interface LoginScreenProps {
   onSelectRole: (role: 'customer' | 'worker' | 'admin', userProfile?: any) => void;
@@ -466,22 +475,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSelectRole }) => {
 
   return (
     <View style={styles.screenContainer}>
-      {/* Dynamic Theme Gradient Canvas */}
-      <LinearGradient
-        colors={
-          isDark
-            ? ['#060d1b', '#071024', '#050a17', '#040712']
-            : ['#f8fafc', '#f1f5f9', '#e8edf5', '#f8fafc']
-        }
-        locations={[0, 0.35, 0.75, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+      {USE_IMAGE_BACKGROUND ? (
+        /* ── NEW: India map photo + animated city dots ─────────────────────── */
+        <IndiaImageBackground isDark={isDark} />
+      ) : (
+        /* ── ORIGINAL background (restored when USE_IMAGE_BACKGROUND = false) */
+        <>
+          {/* Dynamic Theme Gradient Canvas */}
+          <LinearGradient
+            colors={
+              isDark
+                ? ['#020913', '#030d1a', '#020810', '#010509']
+                : ['#f8fafc', '#f1f5f9', '#e8edf5', '#f8fafc']
+            }
+            locations={[0, 0.35, 0.75, 1]}
+            style={StyleSheet.absoluteFill}
+          />
 
-      {/* Background Patriotic Flourishes (Ashoka Chakra watermark & Side Tricolor ribbons) */}
-      <LoginBackgroundFlourish isDark={isDark} />
+          {/* Background Patriotic Flourishes (Ashoka Chakra watermark & Side Tricolor ribbons) */}
+          <LoginBackgroundFlourish isDark={isDark} />
 
-      {/* Reduced footprint India Map with fading bottom and live activity dots */}
-      <IndiaMapOverlay style={[styles.mapOverlay, { top: insets.top + 44 }]} isDark={isDark} />
+          {/* Reduced footprint India Map with fading bottom and live activity dots */}
+          <IndiaMapOverlay style={[styles.mapOverlay, { top: insets.top + 44 }]} isDark={isDark} />
+        </>
+      )}
 
       {/* Top Header Bar */}
       <View style={[styles.topHeader, { paddingTop: Math.max(insets.top, 12) }]}>
@@ -560,7 +577,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSelectRole }) => {
           <Text style={styles.brandHeading}>Sahakari Seva</Text>
           <Text style={styles.brandHindiHeading}>सहकारी सेवा</Text>
 
-          {/* Subtitle matching the reference screenshot */}
+          {/* Subtitle with tricolor accent bars */}
           <View style={styles.brandFederationRow}>
             <View style={styles.brandTricolorBar}>
               <View style={[styles.brandTricolorSegment, { backgroundColor: '#FF9933' }]} />
@@ -580,7 +597,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSelectRole }) => {
           </Text>
         </View>
 
-        {/* Segmented Role Switcher: Customer vs Worker (with subtle Admin toggle) */}
+        {/* Segmented Role Switcher: Customer vs Worker — clean 2-tab style */}
         <View style={styles.rolePickerCard}>
           <View style={styles.segmentedToggle}>
             <TouchableOpacity
@@ -1064,7 +1081,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSelectRole }) => {
 const createStyles = (isDark: boolean) => StyleSheet.create({
   screenContainer: {
     flex: 1,
-    backgroundColor: isDark ? '#040712' : '#f8fafc',
+    backgroundColor: isDark ? '#010509' : '#f8fafc',
     overflow: 'hidden',
     width: '100%',
     maxWidth: '100%',
@@ -1075,7 +1092,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 390,
+    height: 440,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1150,15 +1167,15 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.75)' : 'rgba(255, 255, 255, 0.90)',
+    backgroundColor: isDark ? 'rgba(3, 10, 24, 0.55)' : 'rgba(255, 255, 255, 0.90)',
     borderRadius: 14,
     paddingVertical: 7,
     paddingHorizontal: 8,
     borderWidth: 1,
-    borderColor: isDark ? 'rgba(45, 212, 191, 0.25)' : 'rgba(226, 232, 240, 0.95)',
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(226, 232, 240, 0.95)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0.25 : 0.05,
+    shadowOpacity: isDark ? 0.4 : 0.05,
     shadowRadius: 6,
     elevation: 2,
     marginTop: 4,
@@ -1286,15 +1303,15 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   segmentedToggle: {
     flexDirection: 'row',
     width: '100%',
-    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.85)' : '#ffffff',
+    backgroundColor: isDark ? 'rgba(2, 8, 18, 0.88)' : '#ffffff',
     borderRadius: 22,
     padding: 3.5,
     borderWidth: 1,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0',
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0 : 0.05,
-    shadowRadius: 6,
+    shadowOpacity: isDark ? 0.5 : 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
   segmentBtn: {
@@ -1351,17 +1368,17 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   phoneCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: isDark ? 'rgba(11, 18, 34, 0.88)' : '#ffffff',
+    backgroundColor: isDark ? 'rgba(3, 9, 20, 0.80)' : '#ffffff',
     borderRadius: 22,
     borderWidth: 1.2,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1',
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : '#cbd5e1',
     paddingHorizontal: 14,
     paddingVertical: 2,
     marginBottom: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0 : 0.04,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: isDark ? 0.5 : 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
   phoneCardFocused: {
@@ -1501,16 +1518,16 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   otpCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: isDark ? 'rgba(11, 18, 34, 0.92)' : '#ffffff',
+    backgroundColor: isDark ? 'rgba(3, 9, 20, 0.85)' : '#ffffff',
     borderRadius: 22,
     borderWidth: 1.2,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1',
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.13)' : '#cbd5e1',
     padding: 14,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0 : 0.04,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: isDark ? 0.5 : 0.04,
+    shadowRadius: 10,
     elevation: 3,
   },
   otpCardHeader: {
@@ -1554,9 +1571,9 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     width: 42,
     height: 46,
     borderRadius: 10,
-    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : '#f8fafc',
+    backgroundColor: isDark ? 'rgba(3, 9, 20, 0.92)' : '#f8fafc',
     borderWidth: 1.5,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1',
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : '#cbd5e1',
     fontSize: 19,
     fontWeight: '800',
     textAlign: 'center',
@@ -1653,14 +1670,14 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
     paddingVertical: 9.5,
-    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.85)' : '#ffffff',
+    backgroundColor: isDark ? 'rgba(3, 9, 20, 0.80)' : '#ffffff',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : '#e2e8f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0 : 0.04,
-    shadowRadius: 5,
+    shadowOpacity: isDark ? 0.4 : 0.04,
+    shadowRadius: 6,
     elevation: 2,
   },
   socialBtnText: {
@@ -1672,14 +1689,14 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
   demoSection: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : '#ffffff',
+    backgroundColor: isDark ? 'rgba(3, 9, 20, 0.60)' : '#ffffff',
     borderRadius: 16,
     padding: 10,
     borderWidth: 1,
     borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: isDark ? 0 : 0.03,
+    shadowOpacity: isDark ? 0.35 : 0.03,
     shadowRadius: 5,
     elevation: 2,
     marginBottom: 12,
@@ -1709,7 +1726,7 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     paddingVertical: 5.5,
     paddingHorizontal: 4,
     borderRadius: 12,
-    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#f8fafc',
     borderWidth: 1,
   },
   demoDot: {
@@ -1838,6 +1855,19 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     color: isDark ? '#64748b' : '#94a3b8',
     marginTop: 4,
     textAlign: 'center',
+  },
+  // --- Scroll to explore CTA ---
+  scrollExploreCta: {
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+    gap: 4,
+  },
+  scrollExploreText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: isDark ? '#94a3b8' : '#64748b',
+    letterSpacing: 0.3,
   },
 });
 
