@@ -400,6 +400,8 @@ export const Header: React.FC<HeaderProps> = ({
             <TouchableOpacity
               style={styles.dropdownProfileHeader}
               onPress={handleOpenProfile}
+              accessibilityRole="button"
+              accessibilityLabel="View Profile"
               activeOpacity={0.75}
             >
               <View style={[styles.dropdownAvatarLarge, { backgroundColor: userMeta.avatarBg }]}>
@@ -428,6 +430,8 @@ export const Header: React.FC<HeaderProps> = ({
               <TouchableOpacity
                 style={styles.dropdownItemBtn}
                 onPress={handleOpenProfile}
+                accessibilityRole="button"
+                accessibilityLabel="My Profile"
                 activeOpacity={0.75}
               >
                 <View style={[styles.itemIconWrap, { backgroundColor: colors.primaryLight }]}>
@@ -458,6 +462,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <TouchableOpacity
                     style={styles.dropdownItemBtn}
                     onPress={handleToggleWorkerAvailability}
+                    accessibilityRole="button"
+                    accessibilityLabel="Duty Availability"
                     activeOpacity={0.75}
                   >
                     <View
@@ -529,6 +535,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <TouchableOpacity
                     style={styles.dropdownItemBtn}
                     onPress={handleOpenWelfare}
+                    accessibilityRole="button"
+                    accessibilityLabel="Worker Welfare & Social Security"
                     activeOpacity={0.75}
                   >
                     <View style={[styles.itemIconWrap, { backgroundColor: colors.secondaryLight }]}>
@@ -545,6 +553,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <TouchableOpacity
                     style={styles.dropdownItemBtn}
                     onPress={handleOpenLocation}
+                    accessibilityRole="button"
+                    accessibilityLabel="Operating Radius & Radar"
                     activeOpacity={0.75}
                   >
                     <View style={[styles.itemIconWrap, { backgroundColor: colors.primaryLight }]}>
@@ -561,6 +571,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <TouchableOpacity
                     style={styles.dropdownItemBtn}
                     onPress={handleOpenEmergencySos}
+                    accessibilityRole="button"
+                    accessibilityLabel="Emergency Worker SOS"
                     activeOpacity={0.75}
                   >
                     <View style={[styles.itemIconWrap, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
@@ -584,6 +596,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <TouchableOpacity
                     style={styles.dropdownItemBtn}
                     onPress={handleOpenWelfare}
+                    accessibilityRole="button"
+                    accessibilityLabel="Welfare & Social Security"
                     activeOpacity={0.75}
                   >
                     <View style={[styles.itemIconWrap, { backgroundColor: colors.secondaryLight }]}>
@@ -600,6 +614,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <TouchableOpacity
                     style={styles.dropdownItemBtn}
                     onPress={handleOpenCustomerPassbook}
+                    accessibilityRole="button"
+                    accessibilityLabel="My Bookings & Activity"
                     activeOpacity={0.75}
                   >
                     <View style={[styles.itemIconWrap, { backgroundColor: colors.successLight }]}>
@@ -616,6 +632,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <TouchableOpacity
                     style={styles.dropdownItemBtn}
                     onPress={handleOpenEmergencySos}
+                    accessibilityRole="button"
+                    accessibilityLabel="Emergency Citizen SOS"
                     activeOpacity={0.75}
                   >
                     <View style={[styles.itemIconWrap, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
@@ -634,6 +652,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <TouchableOpacity
                     style={styles.dropdownItemBtn}
                     onPress={handleOpenOmbudsman}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cooperative Ombudsman"
                     activeOpacity={0.75}
                   >
                     <View style={[styles.itemIconWrap, { backgroundColor: colors.violetLight }]}>
@@ -682,6 +702,8 @@ export const Header: React.FC<HeaderProps> = ({
               <TouchableOpacity
                 style={styles.dropdownRowItem}
                 onPress={toggleTheme}
+                accessibilityRole="button"
+                accessibilityLabel="Toggle Theme Appearance"
                 activeOpacity={0.75}
               >
                 <View style={[styles.itemIconWrap, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}>
@@ -700,6 +722,8 @@ export const Header: React.FC<HeaderProps> = ({
               <TouchableOpacity
                 style={styles.dropdownItemBtn}
                 onPress={handleOpenLanguage}
+                accessibilityRole="button"
+                accessibilityLabel="App Display Language"
                 activeOpacity={0.75}
               >
                 <View style={[styles.itemIconWrap, { backgroundColor: colors.primaryLight }]}>
@@ -726,6 +750,8 @@ export const Header: React.FC<HeaderProps> = ({
                   setMenuVisible(false);
                   logout();
                 }}
+                accessibilityRole="button"
+                accessibilityLabel="Switch Role or Logout"
                 activeOpacity={0.75}
               >
                 <LogOut size={14} color={colors.danger} />
