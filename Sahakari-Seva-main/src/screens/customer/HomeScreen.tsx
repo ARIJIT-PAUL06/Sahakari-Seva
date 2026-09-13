@@ -138,41 +138,24 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
-        {/* Dynamic Hero Carousel Section (Auto-changing banners with tap action) */}
-        <FadeInView delay={0} distance={10} duration={320}>
-          <View style={styles.heroBannerContainer}>
-            <TouchableOpacity
-              activeOpacity={0.92}
-              onPress={() => {
-                const route = HERO_BANNERS[currentBannerIndex]?.route || 'Search';
-                navigation.navigate(route);
-              }}
-              style={styles.heroBannerTouch}
-            >
-              <Image
-                source={HERO_BANNERS[currentBannerIndex]?.image}
-                style={styles.heroBannerImage}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
+        {/* Full-width Hero Section in exact aspect ratio */}
+        <TouchableOpacity
+          activeOpacity={0.95}
+          onPress={() => {
+            const route = HERO_BANNERS[currentBannerIndex]?.route || 'Search';
+            navigation.navigate(route);
+          }}
+          style={styles.heroSection}
+        >
+          <Image
+            source={HERO_BANNERS[currentBannerIndex]?.image}
+            style={styles.heroImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
 
-            {HERO_BANNERS.length > 1 && (
-              <View style={styles.heroDotsContainer}>
-                {HERO_BANNERS.map((_, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    onPress={() => setCurrentBannerIndex(idx)}
-                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                    style={[
-                      styles.heroDot,
-                      idx === currentBannerIndex && styles.heroDotActive,
-                    ]}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        </FadeInView>
+        {/* Rest of page hanging just below the hero section */}
+        <View style={styles.bodyContent}>
 
         {/* Categories Grid with Trade-Specific Vibrant Gradients */}
         <FadeInView delay={160} distance={14} duration={360}>
@@ -269,6 +252,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         <FadeInView delay={360} distance={14} duration={360}>
           <Footer />
         </FadeInView>
+        </View>
       </ScrollView>
     </View>
   );
@@ -283,55 +267,21 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
     paddingBottom: 32,
   },
-  heroBannerContainer: {
+  heroSection: {
     width: '100%',
-    marginBottom: 20,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: isDark ? '#080d19' : '#ffffff',
-    borderWidth: 1.2,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDark ? 0.45 : 0.08,
-    shadowRadius: 10,
-    elevation: 3,
-    position: 'relative',
+    aspectRatio: 1024 / 402,
+    backgroundColor: isDark ? '#06130d' : '#f4fbf6',
   },
-  heroBannerTouch: {
+  heroImage: {
     width: '100%',
+    height: '100%',
+    aspectRatio: 1024 / 402,
   },
-  heroBannerImage: {
-    width: '100%',
-    aspectRatio: 2.55,
-    borderRadius: 17,
-  },
-  heroDotsContainer: {
-    position: 'absolute',
-    bottom: 8,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.40)',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 12,
-  },
-  heroDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  heroDotActive: {
-    width: 16,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#ffffff',
+  bodyContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   section: {
     marginBottom: 22,
