@@ -2,7 +2,7 @@
 // CUSTOMER HOME SCREEN — SERVICE CATEGORIES, EMERGENCY BANNER & NEARBY MATCHES
 // ==============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -91,7 +92,12 @@ export const HERO_BANNERS: HeroBannerItem[] = [
     route: 'Search',
     title: 'Trusted work. Shared prosperity.',
   },
-  // Additional banners provided by user will auto-cycle in this slider
+  {
+    id: 'hero-2',
+    image: require('../../../assets/hero-banner-2.png'),
+    route: 'Search',
+    title: 'Celebrating 75 Years of Independence - Viksit Bharat',
+  },
 ];
 
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -105,16 +111,28 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [userLocation, setUserLocation] = useState({ latitude: 26.9017, longitude: 75.7925 });
   const [locationName, setLocationName] = useState('C-Scheme, Jaipur (302001)');
-  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
-  // Auto-change hero banner every 5 seconds if multiple banners exist
+  const bannerScrollRef = useRef<ScrollView>(null);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [bannerWidth, setBannerWidth] = useState(
+    Math.max(Dimensions.get('window').width - 32, 280)
+  );
+
+  // Auto-scroll hero banners horizontally between each other in a brief period of time (4s)
   useEffect(() => {
-    if (HERO_BANNERS.length <= 1) return;
+    if (HERO_BANNERS.length <= 1 || bannerWidth <= 0) return;
     const bannerTimer = setInterval(() => {
-      setCurrentBannerIndex((prev) => (prev + 1) % HERO_BANNERS.length);
-    }, 5000);
+      setCurrentBannerIndex((prev) => {
+        const nextIdx = (prev + 1) % HERO_BANNERS.length;
+        bannerScrollRef.current?.scrollTo({
+          x: nextIdx * bannerWidth,
+          animated: true,
+        });
+        return nextIdx;
+      });
+    }, 4000);
     return () => clearInterval(bannerTimer);
-  }, []);
+  }, [bannerWidth]);
 
   const loadData = async () => {
     try {
@@ -153,23 +171,81 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
-        {/* Hero Section with top gap, exact aspect ratio, and 3D floating shadow */}
+        {/* Hero Section with auto-scroll carousel, top gap, exact aspect ratio, and 3D floating shadow */}
         <FadeInView delay={0} distance={10} duration={320}>
-          <View style={styles.heroShadowWrapper}>
-            <TouchableOpacity
-              activeOpacity={0.94}
-              onPress={() => {
-                const route = HERO_BANNERS[currentBannerIndex]?.route || 'Search';
-                navigation.navigate(route);
-              }}
-              style={styles.heroSection}
-            >
-              <Image
-                source={HERO_BANNERS[currentBannerIndex]?.image}
-                style={styles.heroImage}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
+          <View
+            style={styles.heroShadowWrapper}
+            onLayout={(e) => {
+              const w = e.nativeEvent.layout.width;
+              if (w > 0 && Math.abs(w - bannerWidth) > 1) {
+                setBannerWidth(w);
+              }
+            }}
+          >
+            <View style={styles.heroSection}>
+              <ScrollView
+                ref={bannerScrollRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                bounces={false}
+                scrollEventThrottle={16}
+                onMomentumScrollEnd={(e) => {
+                  const offset = e.nativeEvent.contentOffset.x;
+                  const idx = Math.round(offset / (bannerWidth || 1));
+                  if (idx !== currentBannerIndex) {
+                    setCurrentBannerIndex(idx);
+                  }
+                }}
+                style={styles.heroSliderScroll}
+                contentContainerStyle={{ flexDirection: 'row' }}
+              >
+                {HERO_BANNERS.map((banner) => (
+                  <TouchableOpacity
+                    key={banner.id}
+                    activeOpacity={0.94}
+                    onPress={() => {
+                      const route = banner.route || 'Search';
+                      navigation.navigate(route);
+                    }}
+                    style={{ width: bannerWidth, height: '100%' }}
+                  >
+                    <Image
+                      source={banner.image}
+                      style={styles.heroImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Indicator Pill Dots */}
+              {HERO_BANNERS.length > 1 && (
+                <View style={styles.paginationDotsContainer} pointerEvents="box-none">
+                  <View style={styles.paginationPill}>
+                    {HERO_BANNERS.map((_, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          bannerScrollRef.current?.scrollTo({
+                            x: idx * bannerWidth,
+                            animated: true,
+                          });
+                          setCurrentBannerIndex(idx);
+                        }}
+                        style={[
+                          styles.paginationDot,
+                          currentBannerIndex === idx
+                            ? styles.paginationDotActive
+                            : styles.paginationDotInactive,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
           </View>
         </FadeInView>
 
@@ -309,6 +385,41 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     width: '100%',
     height: '100%',
     aspectRatio: 1024 / 402,
+  },
+  heroSliderScroll: {
+    width: '100%',
+    height: '100%',
+  },
+  paginationDotsContainer: {
+    position: 'absolute',
+    bottom: 8,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paginationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.40)',
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 10,
+    borderWidth: 0.8,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
+  },
+  paginationDot: {
+    height: 4.5,
+    borderRadius: 2.5,
+  },
+  paginationDotActive: {
+    width: 18,
+    backgroundColor: '#ffffff',
+  },
+  paginationDotInactive: {
+    width: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
   },
   section: {
     marginBottom: 24,
