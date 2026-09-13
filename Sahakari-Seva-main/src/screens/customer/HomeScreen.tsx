@@ -60,6 +60,20 @@ const categoryIcons: Record<string, any> = {
 };
 
 // ==============================================================================
+// 3D CATEGORY ASSETS MAP
+// ==============================================================================
+const CATEGORY_IMAGES: Record<string, any> = {
+  'Electrical': require('../../../assets/categories/category-electrical.png'),
+  'Plumbing': require('../../../assets/categories/category-plumbing.png'),
+  'Carpentry': require('../../../assets/categories/category-carpentry.png'),
+  'Painting': require('../../../assets/categories/category-painting.png'),
+  'Cleaning & Sanitization': require('../../../assets/categories/category-cleaning.png'),
+  'Gardening & Landscaping': require('../../../assets/categories/category-gardening.png'),
+  'Appliance Repair': require('../../../assets/categories/category-appliance.png'),
+  'AC Repair & Servicing': require('../../../assets/categories/category-ac.png'),
+};
+
+// ==============================================================================
 // HERO BANNER SLIDER CONFIGURATION
 // Add more banner objects here to automatically rotate them on the homepage.
 // ==============================================================================
@@ -179,30 +193,27 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
             <View style={styles.categoryGrid}>
               {categories.slice(0, 8).map((cat, idx) => {
-                const IconComp = categoryIcons[cat.name] || Zap;
+                const catImg = CATEGORY_IMAGES[cat.name];
                 const title = translateTrade(cat.name);
-                const tradeTheme = getTradeTheme(cat.name, isDark);
 
                 return (
-                  <FadeInView key={cat.id} delay={180 + idx * 50} distance={10} duration={280} style={styles.categoryCardWrap}>
-                    <ScalePressable onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })} scaleTo={0.92}>
-                      <View style={[styles.categoryCard, { borderColor: tradeTheme.border }]}>
-                        <LinearGradient
-                          colors={tradeTheme.gradient}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.iconCircle}
-                        >
-                          <IconComp size={18} color="#ffffff" />
-                        </LinearGradient>
+                  <FadeInView key={cat.id} delay={140 + idx * 35} distance={10} duration={260} style={styles.categoryCardWrap}>
+                    <ScalePressable onPress={() => navigation.navigate('Search', { selectedCategory: cat.name })} scaleTo={0.93}>
+                      <View style={styles.categoryCard}>
+                        <View style={styles.catImageWrap}>
+                          {catImg ? (
+                            <Image
+                              source={catImg}
+                              style={styles.catImage}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <Text style={{ fontSize: 24 }}>🛠️</Text>
+                          )}
+                        </View>
                         <Text style={styles.catTitle} numberOfLines={2}>
                           {title}
                         </Text>
-                        <View style={[styles.catPriceBadge, { backgroundColor: tradeTheme.badgeBg }]}>
-                          <Text style={[styles.catPrice, { color: tradeTheme.badgeText }]}>
-                            ₹{cat.base_price}
-                          </Text>
-                        </View>
                       </View>
                     </ScalePressable>
                   </FadeInView>
@@ -326,55 +337,49 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: 11,
+    rowGap: 12,
   },
   categoryCardWrap: {
     width: '23%',
   },
   categoryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
+    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.60)' : 'rgba(255, 255, 255, 0.82)',
+    borderRadius: 18,
     paddingVertical: 10,
     paddingHorizontal: 4,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1.2,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.90)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.35 : 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  catImageWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: 16,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
+    marginBottom: 7,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(241, 245, 249, 0.70)',
+  },
+  catImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 15,
   },
   catTitle: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
     color: colors.textPrimary,
     textAlign: 'center',
     minHeight: 28,
     lineHeight: 14,
-    paddingHorizontal: 1,
-  },
-  catPriceBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 6,
-    marginTop: 4,
-  },
-  catPrice: {
-    fontSize: 9.5,
-    fontWeight: '800',
+    paddingHorizontal: 2,
   },
 });
 
