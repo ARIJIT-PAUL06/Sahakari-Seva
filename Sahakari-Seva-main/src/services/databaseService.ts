@@ -296,12 +296,28 @@ export class DatabaseService {
     }
     this.storageSet(KEY_CHANGELOG, JSON.stringify(this.changeLogCache)).catch(() => {});
 
-    // Push to CloudSyncAdapter
+    // 1. Push entity change to CloudSyncAdapter (e.g. bookings, invoices)
     CloudSyncAdapter.pushChange({
       entity,
       action: action === 'delete' ? 'delete' : action === 'insert' ? 'insert' : 'update',
       entity_id,
       record: details,
+      timestamp: record.timestamp,
+    }).catch(() => {});
+
+    // 2. Also push audit record to changelog table in Supabase
+    CloudSyncAdapter.pushChange({
+      entity: 'changelog',
+      action: 'insert',
+      entity_id: record.id,
+      record: {
+        id: record.id,
+        entity: record.entity,
+        action: record.action,
+        entity_id: record.entity_id,
+        timestamp: record.timestamp,
+        details: record.details,
+      },
       timestamp: record.timestamp,
     }).catch(() => {});
   }

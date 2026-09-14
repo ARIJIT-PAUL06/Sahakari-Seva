@@ -21,13 +21,13 @@ export interface SyncPayload {
 
 export class CloudSyncAdapter {
   private static config: CloudSyncConfig = {
-    provider: (process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY)
-      ? 'supabase'
-      : process.env.EXPO_PUBLIC_API_URL
-      ? 'rest'
-      : 'local_only',
-    endpoint: process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.EXPO_PUBLIC_API_URL,
-    apiKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+    provider: 'supabase',
+    endpoint:
+      process.env.EXPO_PUBLIC_SUPABASE_URL ||
+      'https://cvbraoniruzplwxbgzja.supabase.co',
+    apiKey:
+      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+      'sb_publishable_nGQOmXn-_7FD0w4dMwbvgg_6KGkPR0X',
     autoSync: true,
   };
 
@@ -43,11 +43,34 @@ export class CloudSyncAdapter {
   }
 
   /**
+   * Maps entity name to corresponding database table name in Supabase.
+   */
+  public static getTableName(entity: string): string {
+    const tableMap: Record<string, string> = {
+      booking: 'bookings',
+      bookings: 'bookings',
+      invoice: 'invoices',
+      invoices: 'invoices',
+      notification: 'notifications',
+      notifications: 'notifications',
+      worker: 'workers',
+      workers: 'workers',
+      profile: 'customer_profiles',
+      customer_profiles: 'customer_profiles',
+      rating: 'ratings',
+      ratings: 'ratings',
+      welfare: 'welfare',
+      changelog: 'changelog',
+    };
+    return tableMap[entity] || entity;
+  }
+
+  /**
    * Queue a change to be synchronized with the remote cloud database.
    */
   public static async pushChange(payload: SyncPayload): Promise<boolean> {
     if (this.config.provider === 'local_only') {
-      // Clean local operation: acknowledged immediately
+      // Local operation acknowledged immediately
       return true;
     }
 
@@ -84,7 +107,7 @@ export class CloudSyncAdapter {
         }
       } catch (err) {
         console.warn(`[CloudSyncAdapter] Failed to sync ${item.entity}:${item.entity_id}`, err);
-        // Re-queue for next sync attempt
+        // Re-queue failed item for next flush attempt
         this.syncQueue.push(item);
         failed++;
       }
@@ -95,7 +118,7 @@ export class CloudSyncAdapter {
   }
 
   private static async syncToSupabase(item: SyncPayload): Promise<void> {
-    const table = item.entity;
+    const table = this.getTableName(item.entity);
     const url = `${this.config.endpoint}/rest/v1/${table}`;
     const headers = {
       'apikey': this.config.apiKey!,
@@ -105,21 +128,46 @@ export class CloudSyncAdapter {
     };
 
     if (item.action === 'insert' || item.action === 'update') {
-      await fetch(url, {
+      // Ensure raw_data and id are present
+      const cleanRecord =
+        typeof item.record === 'object' && item.record !== null
+          ? {
+              id: item.entity_id,
+              ...item.record,
+              raw_data: item.record,
+            }
+          : {
+              id: item.entity_id,
+              details: item.record,
+              raw_data: item.record,
+            };
+
+      const res = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify(item.record),
+        body: JSON.stringify(cleanRecord),
       });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Supabase sync failed for ${table} [${res.status}]: ${errText}`);
+      }
     } else if (item.action === 'delete') {
-      await fetch(`${url}?id=eq.${item.entity_id}`, {
+      const res = await fetch(`${url}?id=eq.${item.entity_id}`, {
         method: 'DELETE',
         headers,
       });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Supabase delete failed for ${table} [${res.status}]: ${errText}`);
+      }
     }
   }
 
   private static async syncToRest(item: SyncPayload): Promise<void> {
-    const url = `${this.config.endpoint}/${item.entity}/${item.action === 'delete' ? item.entity_id : ''}`;
+    const table = this.getTableName(item.entity);
+    const url = `${this.config.endpoint}/${table}/${item.action === 'delete' ? item.entity_id : ''}`;
     const method = item.action === 'insert' ? 'POST' : item.action === 'update' ? 'PATCH' : 'DELETE';
     await fetch(url, {
       method,
