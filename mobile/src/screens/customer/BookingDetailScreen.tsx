@@ -8,12 +8,13 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
+  Platform,
   ActivityIndicator,
   DeviceEventEmitter,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, AlertTriangle, CheckCircle2, Check, X, Wrench, ShieldCheck, Receipt, Star, Lock, Clock, QrCode } from 'lucide-react-native';
+import { ArrowLeft, AlertTriangle, CheckCircle2, Check, X, Wrench, ShieldCheck, Receipt, Star, Lock, Clock, QrCode, Zap } from 'lucide-react-native';
 import { radii, spacing, makeTypography, useTheme } from '../../theme';
 import type { Palette } from '../../theme';
 import { Card, Button, Badge } from '../../components/ui';
@@ -26,7 +27,7 @@ import { Booking, Payment, Invoice } from '../../types';
 import { translateTrade } from '../../i18n';
 
 type RouteParams = {
-  BookingDetail: { bookingId: string; showCompletionQr?: boolean };
+  BookingDetail: { bookingId: string; showCompletionQr?: boolean; autoOpenCheckout?: boolean };
 };
 
 export const BookingDetailScreen: React.FC = () => {
@@ -48,6 +49,7 @@ export const BookingDetailScreen: React.FC = () => {
   const [latestPayment, setLatestPayment] = useState<Payment | null>(null);
   const [latestInvoice, setLatestInvoice] = useState<Invoice | null>(null);
   const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [verifyingWork, setVerifyingWork] = useState(false);
 
   const fetchBooking = async () => {
     if (!bookingId) return;
@@ -71,6 +73,12 @@ export const BookingDetailScreen: React.FC = () => {
       setQrModalVisible(true);
     }
   }, [route.params?.showCompletionQr]);
+
+  useEffect(() => {
+    if (route.params?.autoOpenCheckout && booking && booking.status === 'completed' && booking.payment_status !== 'paid') {
+      setCheckoutModalVisible(true);
+    }
+  }, [route.params?.autoOpenCheckout, booking?.status, booking?.payment_status]);
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('app_booking_updated', () => {
@@ -178,6 +186,41 @@ export const BookingDetailScreen: React.FC = () => {
   const handlePayNow = () => {
     if (!booking) return;
     setCheckoutModalVisible(true);
+  };
+
+  const handleCustomerVerifyAndComplete = async () => {
+    if (!booking) return;
+    const finalPrice = booking.final_amount || booking.estimated_amount || 0;
+
+    const doVerify = async () => {
+      try {
+        setVerifyingWork(true);
+        await ApiClient.verifyAndCompleteJob(booking.id, 'CUSTOMER_DIRECT_APPROVAL');
+        await fetchBooking();
+        setCheckoutModalVisible(true);
+      } catch (err: any) {
+        Alert.alert('Verification Failed', err.message || 'Could not verify completion.');
+      } finally {
+        setVerifyingWork(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      await doVerify();
+      return;
+    }
+
+    Alert.alert(
+      'Verify & Sign Off Service Work? 🛡️',
+      `Confirm that ${booking.worker?.profile?.full_name || 'the service professional'} has completed the service to your satisfaction. The job will be marked completed and payment of ₹${Number(finalPrice).toFixed(0)} will be unlocked.`,
+      [
+        { text: 'Inspect More', style: 'cancel' },
+        {
+          text: 'Yes, Work is Verified ✓',
+          onPress: doVerify,
+        },
+      ]
+    );
   };
 
   const handlePaymentSuccess = (res: { payment: Payment; invoice: Invoice }) => {
@@ -378,27 +421,69 @@ export const BookingDetailScreen: React.FC = () => {
         )}
 
         {booking.status === 'in_progress' && (
-          <View style={styles.statusExplainerCardInProgress}>
-            <View style={styles.statusExplainerIconCircleInProgress}>
-              <ShieldCheck size={18} color="#2563eb" strokeWidth={2.5} />
+          <View style={[styles.statusExplainerCardInProgress, booking.completion_requested && { borderColor: '#d97706', borderWidth: 1.5 }]}>
+            <View style={[styles.statusExplainerIconCircleInProgress, booking.completion_requested && { backgroundColor: isDark ? 'rgba(217,119,6,0.2)' : '#fef3c7' }]}>
+              {booking.completion_requested ? (
+                <ShieldCheck size={18} color={isDark ? '#FBBF24' : '#D97706'} strokeWidth={2.5} />
+              ) : (
+                <ShieldCheck size={18} color="#2563eb" strokeWidth={2.5} />
+              )}
             </View>
             <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.statusExplainerTitleInProgress}>
-                Service In Progress ⚡
+              <Text style={[styles.statusExplainerTitleInProgress, booking.completion_requested && { color: isDark ? '#FBBF24' : '#b45309' }]}>
+                {booking.completion_requested ? 'Worker Sign-Off Requested ⚡' : 'Service In Progress ⚡'}
               </Text>
               <Text style={styles.statusExplainerDescInProgress}>
-                {worker?.profile?.full_name || 'Assigned Professional'} is actively performing on-site service.
+                {booking.completion_requested
+                  ? `${worker?.profile?.full_name || 'Assigned Professional'} has completed the service work and requested your verification. Inspect the work and sign off below.`
+                  : `${worker?.profile?.full_name || 'Assigned Professional'} is actively performing on-site service.`}
               </Text>
-              <TouchableOpacity
-                style={styles.showQrActionBtn}
-                onPress={() => setQrModalVisible(true)}
-                activeOpacity={0.85}
-              >
-                <QrCode size={15} color="#ffffff" />
-                <Text style={styles.showQrActionBtnText}>
-                  {booking.completion_requested ? 'Worker Ready — Show Completion QR ✓' : 'Show Completion Pass QR'}
-                </Text>
-              </TouchableOpacity>
+
+              {booking.completion_requested ? (
+                <View style={{ gap: 8, marginTop: 10 }}>
+                  <TouchableOpacity
+                    style={[styles.payNowQuickActionBtn, { backgroundColor: '#059669', alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', paddingVertical: 9 }]}
+                    onPress={handleCustomerVerifyAndComplete}
+                    disabled={verifyingWork}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Verify Work Done & Pay"
+                  >
+                    {verifyingWork ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <CheckCircle2 size={16} color="#ffffff" />
+                        <Text style={styles.payNowQuickActionBtnText}>
+                          Verify Work Done & Pay (₹{finalPrice.toFixed(0)}) →
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.showQrActionBtn, { marginTop: 0 }]}
+                    onPress={() => setQrModalVisible(true)}
+                    activeOpacity={0.85}
+                  >
+                    <QrCode size={15} color="#ffffff" />
+                    <Text style={styles.showQrActionBtnText}>
+                      Show Completion Pass QR
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.showQrActionBtn}
+                  onPress={() => setQrModalVisible(true)}
+                  activeOpacity={0.85}
+                >
+                  <QrCode size={15} color="#ffffff" />
+                  <Text style={styles.showQrActionBtnText}>
+                    Show Completion Pass QR
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}
@@ -412,6 +497,47 @@ export const BookingDetailScreen: React.FC = () => {
               </Text>
               <Text style={styles.statusExplainerDescCancelled}>
                 This service request has been cancelled. No fees were charged.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {booking.status === 'completed' && !isPaid && (
+          <View style={styles.statusExplainerCardPaymentDue}>
+            <View style={styles.statusExplainerIconCirclePaymentDue}>
+              <Zap size={18} color={isDark ? '#FBBF24' : '#D97706'} strokeWidth={2.5} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.statusExplainerTitlePaymentDue}>
+                Service Completed • Payment Due
+              </Text>
+              <Text style={styles.statusExplainerDescPaymentDue}>
+                {worker?.profile?.full_name || 'The professional'} has finished the service work. Under cooperative bylaws, payment was held until completion. Please settle ₹{finalPrice.toFixed(0)} now.
+              </Text>
+              <TouchableOpacity
+                style={styles.payNowQuickActionBtn}
+                onPress={handlePayNow}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Pay Now"
+              >
+                <Text style={styles.payNowQuickActionBtnText}>
+                  Pay Now (₹{finalPrice.toFixed(0)}) →
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {booking.status === 'completed' && isPaid && (
+          <View style={styles.statusExplainerCardAccepted}>
+            <CheckCircle2 size={18} color="#059669" />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.statusExplainerTitleAccepted}>
+                Service Completed & Payment Settled ✓
+              </Text>
+              <Text style={styles.statusExplainerDescAccepted}>
+                All tasks verified and settled. 85% worker earnings credited to {worker?.profile?.full_name || 'the professional'}.
               </Text>
             </View>
           </View>
@@ -803,44 +929,126 @@ export const BookingDetailScreen: React.FC = () => {
         )}
 
         {booking.status === 'in_progress' && !isPaid && (
-          <View style={styles.pendingActionCard}>
+          <View style={[styles.pendingActionCard, booking.completion_requested && { borderColor: '#d97706', borderWidth: 1.5 }]}>
             <View style={styles.pendingTrustRow}>
-              <View style={[styles.pendingTrustIconCircle, { backgroundColor: isDark ? 'rgba(37,99,235,0.2)' : '#eff6ff' }]}>
-                <ShieldCheck size={18} color={isDark ? '#60a5fa' : '#2563eb'} />
+              <View style={[styles.pendingTrustIconCircle, { backgroundColor: booking.completion_requested ? (isDark ? 'rgba(217,119,6,0.2)' : '#fef3c7') : (isDark ? 'rgba(37,99,235,0.2)' : '#eff6ff') }]}>
+                <ShieldCheck size={18} color={booking.completion_requested ? (isDark ? '#FBBF24' : '#d97706') : (isDark ? '#60a5fa' : '#2563eb')} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.pendingTrustTitle, { color: isDark ? '#60a5fa' : '#1d4ed8' }]}>
+                <Text style={[styles.pendingTrustTitle, { color: booking.completion_requested ? (isDark ? '#FBBF24' : '#b45309') : (isDark ? '#60a5fa' : '#1d4ed8') }]}>
                   {booking.completion_requested ? 'Worker Ready for Sign-Off' : 'Service In Progress'}
                 </Text>
                 <Text style={styles.pendingTrustDesc}>
                   {booking.completion_requested
-                    ? `${worker?.profile?.full_name || 'The professional'} has finished the work and requested your sign-off. Show your Completion Pass QR to authorize.`
+                    ? `${worker?.profile?.full_name || 'The professional'} has finished the work and requested your sign-off. Verify below to complete the job and pay the professional.`
                     : `${worker?.profile?.full_name || 'The professional'} is actively performing the service work. You will authorize completion by displaying your QR code.`}
                 </Text>
               </View>
             </View>
-            <TouchableOpacity
-              style={[styles.showQrActionBtn, { marginTop: 12 }]}
-              onPress={() => setQrModalVisible(true)}
-              activeOpacity={0.85}
-            >
-              <QrCode size={15} color="#ffffff" />
-              <Text style={styles.showQrActionBtnText}>
-                {booking.completion_requested ? 'Show Completion Pass QR ✓' : 'Show Completion QR'}
-              </Text>
-            </TouchableOpacity>
+
+            {booking.completion_requested ? (
+              <View style={{ gap: 8, marginTop: 12 }}>
+                <Button
+                  title={`Verify Work Done & Pay (₹${finalPrice.toFixed(0)})`}
+                  variant="primary"
+                  size="lg"
+                  loading={verifyingWork}
+                  onPress={handleCustomerVerifyAndComplete}
+                  style={{ backgroundColor: '#059669' }}
+                />
+                <TouchableOpacity
+                  style={[styles.showQrActionBtn, { marginTop: 0 }]}
+                  onPress={() => setQrModalVisible(true)}
+                  activeOpacity={0.85}
+                >
+                  <QrCode size={15} color="#ffffff" />
+                  <Text style={styles.showQrActionBtnText}>
+                    Show Completion Pass QR
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.showQrActionBtn, { marginTop: 12 }]}
+                onPress={() => setQrModalVisible(true)}
+                activeOpacity={0.85}
+              >
+                <QrCode size={15} color="#ffffff" />
+                <Text style={styles.showQrActionBtnText}>
+                  Show Completion Pass QR
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
         {booking.status === 'completed' && !isPaid && (
-          <Button
-            title={`Pay Now (₹${finalPrice.toFixed(0)})`}
-            variant="primary"
-            size="lg"
-            loading={paying}
-            onPress={handlePayNow}
-            style={styles.actionBtn}
-          />
+          <View style={styles.paymentDueActionCard}>
+            <View style={styles.paymentDueHeaderRow}>
+              <View style={styles.paymentDueBadge}>
+                <Zap size={14} color="#d97706" />
+                <Text style={styles.paymentDueBadgeText}>SERVICE COMPLETED • PAYMENT DUE</Text>
+              </View>
+              <Text style={styles.paymentDueAmountText}>₹{finalPrice.toFixed(2)}</Text>
+            </View>
+
+            <Text style={styles.paymentDueExplainerText}>
+              {worker?.profile?.full_name || 'The professional'} has successfully completed this service. Under Sahakari Seva cooperative bylaws, prepayment was withheld until work was verified. Please settle the payment now.
+            </Text>
+
+            <View style={styles.paymentDueMethodsRow}>
+              <View style={styles.methodTag}>
+                <Text style={styles.methodTagText}>⚡ UPI Instant</Text>
+              </View>
+              <View style={styles.methodTag}>
+                <Text style={styles.methodTagText}>💳 RuPay Card</Text>
+              </View>
+              <View style={styles.methodTag}>
+                <Text style={styles.methodTagText}>💵 Cash to Worker</Text>
+              </View>
+            </View>
+
+            <Button
+              title={`Pay Now (₹${finalPrice.toFixed(0)})`}
+              variant="primary"
+              size="lg"
+              loading={paying}
+              onPress={handlePayNow}
+              style={[styles.actionBtn, { marginTop: spacing.sm }]}
+            />
+
+            <TouchableOpacity
+              style={styles.paidCashSecondaryBtn}
+              onPress={() => {
+                Alert.alert(
+                  'Confirm Cash Payment',
+                  `Did you hand ₹${finalPrice.toFixed(0)} in physical cash directly to ${worker?.profile?.full_name || 'the professional'}?`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Yes, Handed Cash',
+                      onPress: async () => {
+                        try {
+                          setPaying(true);
+                          const res = await ApiClient.confirmCashPayment(booking.id, finalPrice);
+                          handlePaymentSuccess(res);
+                        } catch (err: any) {
+                          Alert.alert('Error', err.message || 'Could not record cash payment.');
+                        } finally {
+                          setPaying(false);
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.paidCashSecondaryBtnText}>
+                Handed cash to {worker?.profile?.full_name?.split(' ')[0] || 'worker'}? Mark Cash Paid
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {booking.status === 'cancelled' && (
@@ -944,6 +1152,7 @@ export const BookingDetailScreen: React.FC = () => {
         visible={qrModalVisible}
         booking={booking}
         onClose={() => setQrModalVisible(false)}
+        onVerifyAndPay={handleCustomerVerifyAndComplete}
       />
       </ScrollView>
     </View>
@@ -1838,6 +2047,129 @@ const createStyles = (colors: Palette, typography: ReturnType<typeof makeTypogra
     fontSize: 12,
     color: colors.textSecondary,
     lineHeight: 16,
+  },
+  statusExplainerCardPaymentDue: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.14)' : '#FFFBEB',
+    borderWidth: 1.5,
+    borderColor: isDark ? 'rgba(245, 158, 11, 0.4)' : '#FDE68A',
+    borderRadius: radii.md,
+    padding: spacing.sm + 2,
+    marginBottom: spacing.md,
+    marginTop: spacing.xs,
+  },
+  statusExplainerIconCirclePaymentDue: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.25)' : '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusExplainerTitlePaymentDue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: isDark ? '#FBBF24' : '#B45309',
+    marginBottom: 3,
+  },
+  statusExplainerDescPaymentDue: {
+    fontSize: 11.5,
+    color: isDark ? '#FDE68A' : '#78350F',
+    lineHeight: 16,
+  },
+  payNowQuickActionBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  payNowQuickActionBtnText: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  paymentDueActionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    borderColor: isDark ? 'rgba(245, 158, 11, 0.5)' : '#FDE68A',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: isDark ? 0.35 : 0.09,
+    shadowRadius: 10,
+    elevation: 4,
+    marginBottom: spacing.sm,
+  },
+  paymentDueHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  paymentDueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.2)' : '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  paymentDueBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: isDark ? '#FBBF24' : '#B45309',
+    letterSpacing: 0.3,
+  },
+  paymentDueAmountText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.textPrimary,
+  },
+  paymentDueExplainerText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 17,
+    marginTop: 6,
+  },
+  paymentDueMethodsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  methodTag: {
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
+  },
+  methodTagText: {
+    fontSize: 10.5,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  paidCashSecondaryBtn: {
+    marginTop: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: radii.md,
+    borderWidth: 1.2,
+    borderColor: colors.border,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f8fafc',
+  },
+  paidCashSecondaryBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
 });
 

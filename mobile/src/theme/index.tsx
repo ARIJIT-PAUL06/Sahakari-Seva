@@ -79,44 +79,44 @@ export interface Palette {
 // -----------------------------------------------------------------------------
 
 export const modernLightColors: Palette = {
-  primary: '#10b981',        // Cooperative Emerald
-  primaryLight: '#ecfdf5',   // Soft emerald mint tint
-  primaryDark: '#047857',    // Deep forest emerald
+  primary: '#087F5B',        // Primary Cooperative Green (dominant brand)
+  primaryLight: '#E8F7F1',   // Soft Mint tint
+  primaryDark: '#075C43',    // Primary Dark / Forest Green
 
-  secondary: '#f59e0b',      // Radiant Amber / Saffron
-  secondaryLight: '#fef3c7', // Soft amber tint
-  secondaryDark: '#b45309',  // Deep amber gold
+  secondary: '#F39A24',      // Accent Saffron
+  secondaryLight: '#FFF4DD', // Soft Saffron
+  secondaryDark: '#B86A00',  // Deep Amber Saffron
 
-  background: '#f8fafc',     // Clean slate canvas (matches login screen)
-  surface: '#ffffff',        // Pure crisp white cards
-  surfaceSubtle: '#f1f5f9',  // Elevated slate-100 containers
-  border: '#e2e8f0',         // Crisp modern slate dividers
-  borderFocus: '#10b981',    // Emerald focus ring
-  topPanel: '#ffffff',       // Crisp white top header
-  topPanelBorder: '#e2e8f0', // Clean divider
+  background: '#FAFBF8',     // Warm White / Canvas (~70% dominance)
+  surface: '#FFFFFF',        // Surface White (pure crisp white cards)
+  surfaceSubtle: '#F4F6F4',  // Light subtle container
+  border: '#E3E8E5',         // Cooperative Border
+  borderFocus: '#087F5B',    // Green focus ring
+  topPanel: '#FFFFFF',       // Top panel canvas
+  topPanelBorder: '#E3E8E5', // Clean border
 
-  textPrimary: '#0f172a',    // High-contrast slate-900 ink
-  textSecondary: '#475569',  // Slate-600 body text
-  textMuted: '#94a3b8',      // Slate-400 captions
-  textInverse: '#ffffff',    // White on dark buttons
+  textPrimary: '#142238',    // Primary Text / Deep Navy
+  textSecondary: '#667085',  // Secondary Text / Slate
+  textMuted: '#94A3B8',      // Slate-400 captions
+  textInverse: '#FFFFFF',    // White text on brand buttons
 
-  success: '#10b981',        // Emerald
-  successLight: '#d1fae5',
-  successDark: '#065f46',
-  warning: '#f59e0b',        // Amber
-  warningLight: '#fef3c7',
-  warningDark: '#92400e',
-  danger: '#e11d48',         // Rose / Coral
-  dangerLight: '#ffe4e6',
-  dangerDark: '#9f1239',
-  info: '#0d9488',           // Architectural Teal
-  infoLight: '#ccfbf1',
-  infoDark: '#0f766e',
-  violet: '#8b5cf6',         // Modern violet
-  violetLight: '#ede9fe',
-  violetDark: '#6d28d9',
+  success: '#087F5B',        // Cooperative Green
+  successLight: '#E8F7F1',
+  successDark: '#075C43',
+  warning: '#F39A24',        // Accent Saffron
+  warningLight: '#FFF4DD',
+  warningDark: '#B86A00',
+  danger: '#D92D4F',         // Emergency Red (reserved strictly for emergency)
+  dangerLight: '#FDECEF',    // Emergency Pale Pink / Red
+  dangerDark: '#9F1239',
+  info: '#2563EB',           // Info Blue
+  infoLight: '#EAF2FF',
+  infoDark: '#1D4ED8',
+  violet: '#087F5B',         // Remapped to Primary Cooperative Green (no random purple)
+  violetLight: '#E8F7F1',
+  violetDark: '#075C43',
 
-  star: '#f59e0b',
+  star: '#F39A24',
 };
 
 export const modernDarkColors: Palette = {
@@ -283,36 +283,43 @@ export const radii = {
   full: 9999,
 };
 
+import { Platform } from 'react-native';
+
+const defaultFontFamily = Platform.select({
+  web: '"Plus Jakarta Sans", "Noto Sans Devanagari", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  default: undefined,
+});
+
 export const makeTypography = (colors: Palette) => ({
-  fontDisplay: { fontSize: 26, fontWeight: '700' as const, color: colors.textPrimary },
-  fontHeadline: { fontSize: 21, fontWeight: '700' as const, color: colors.textPrimary },
-  fontTitle: { fontSize: 17, fontWeight: '600' as const, color: colors.textPrimary },
-  fontSubtitle: { fontSize: 14, fontWeight: '600' as const, color: colors.textPrimary },
-  fontBody: { fontSize: 13, fontWeight: '400' as const, color: colors.textSecondary },
-  fontBodySm: { fontSize: 12, fontWeight: '400' as const, color: colors.textMuted },
-  fontCaption: { fontSize: 10, fontWeight: '500' as const, color: colors.textMuted },
+  fontDisplay: { fontFamily: defaultFontFamily, fontSize: 26, fontWeight: '700' as const, color: colors.textPrimary, lineHeight: 32 },
+  fontHeadline: { fontFamily: defaultFontFamily, fontSize: 21, fontWeight: '700' as const, color: colors.textPrimary, lineHeight: 28 },
+  fontTitle: { fontFamily: defaultFontFamily, fontSize: 17, fontWeight: '700' as const, color: colors.textPrimary, lineHeight: 24 },
+  fontSubtitle: { fontFamily: defaultFontFamily, fontSize: 14, fontWeight: '600' as const, color: colors.textPrimary, lineHeight: 20 },
+  fontBody: { fontFamily: defaultFontFamily, fontSize: 13, fontWeight: '400' as const, color: colors.textSecondary, lineHeight: 18 },
+  fontBodySm: { fontFamily: defaultFontFamily, fontSize: 12, fontWeight: '500' as const, color: colors.textSecondary, lineHeight: 16 },
+  fontCaption: { fontFamily: defaultFontFamily, fontSize: 11, fontWeight: '500' as const, color: colors.textMuted, lineHeight: 14 },
 });
 
 export const makeShadows = (colors: Palette) => ({
   card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: '#142238',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowRadius: 8,
     elevation: 2,
   },
   modal: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowColor: '#142238',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
   },
   floating: {
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
     elevation: 4,
   },
 });
@@ -349,9 +356,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [mode, setModeState] = useState<ThemeMode>(() =>
-    Appearance.getColorScheme() === 'dark' ? 'dark' : 'light'
-  );
+  const [mode, setModeState] = useState<ThemeMode>('light');
   const [preset, setPresetState] = useState<ThemePreset>(DEFAULT_THEME_PRESET);
   const [hydrated, setHydrated] = useState(false);
   const [overlayActive, setOverlayActive] = useState(false);
@@ -373,9 +378,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
       .catch(() => {})
       .finally(() => active && setHydrated(true));
+
     return () => {
       active = false;
     };
+  }, []);
+
+  // Dynamically inject Plus Jakarta Sans & Noto Sans Devanagari on web
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      if (!document.getElementById('ss-google-fonts')) {
+        const link = document.createElement('link');
+        link.id = 'ss-google-fonts';
+        link.rel = 'stylesheet';
+        link.href =
+          'https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap';
+        document.head.appendChild(link);
+      }
+    }
   }, []);
 
   const isDark = mode === 'dark';
@@ -408,7 +428,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toValue: 1,
       duration: 150,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
 
     setTimeout(() => {
@@ -418,7 +438,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           toValue: 0,
           duration: 320,
           easing: Easing.inOut(Easing.cubic),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }).start();
 
         setTimeout(() => {

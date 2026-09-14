@@ -457,6 +457,8 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
               onPress={handleProcessPayment}
               disabled={isProcessing}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`Pay ₹${totalAmount.toFixed(2)} Securely`}
             >
               {isProcessing ? (
                 <View style={styles.payNowBtnContent}>

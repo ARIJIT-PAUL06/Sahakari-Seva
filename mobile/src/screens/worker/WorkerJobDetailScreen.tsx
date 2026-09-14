@@ -35,6 +35,7 @@ import {
   HeartHandshake,
   AlertTriangle,
   QrCode,
+  FileText,
 } from 'lucide-react-native';
 import { ApiClient } from '../../services/apiClient';
 import { Booking, ExtraTaskItem } from '../../types';
@@ -43,6 +44,7 @@ import type { Palette } from '../../theme';
 import { FadeInView, ScalePressable } from '../../animations';
 import { SupplementalBillModal } from '../../components/worker/SupplementalBillModal';
 import { WorkerCompletionScannerModal } from '../../components/worker/WorkerCompletionScannerModal';
+import { WorkerPaymentQRModal } from '../../components/worker/WorkerPaymentQRModal';
 import { useAppBackHandler } from '../../hooks/useAppBackHandler';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -91,6 +93,7 @@ export const WorkerJobDetailScreen: React.FC<WorkerJobDetailScreenProps> = ({
   const [ongoingServiceConflict, setOngoingServiceConflict] = useState<Booking | null>(null);
   const [billModalVisible, setBillModalVisible] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
+  const [paymentQrVisible, setPaymentQrVisible] = useState(false);
 
   const fetchJob = async () => {
     if (!bookingId) return;
@@ -125,6 +128,12 @@ export const WorkerJobDetailScreen: React.FC<WorkerJobDetailScreenProps> = ({
     if (route?.params?.job) {
       setJob(route.params.job);
     }
+    if (route?.params?.openScanner) {
+      setScannerVisible(true);
+    }
+    if (route?.params?.openPaymentQr) {
+      setPaymentQrVisible(true);
+    }
     fetchJob();
     const sub = DeviceEventEmitter.addListener('app_booking_updated', () => {
       fetchJob();
@@ -132,7 +141,7 @@ export const WorkerJobDetailScreen: React.FC<WorkerJobDetailScreenProps> = ({
     return () => {
       sub.remove();
     };
-  }, [bookingId, route?.params?.job]);
+  }, [bookingId, route?.params?.job, route?.params?.openScanner, route?.params?.openPaymentQr]);
 
   const isPrepaidViolation = ApiClient.isPrepaidViolation(job);
 
@@ -738,13 +747,86 @@ export const WorkerJobDetailScreen: React.FC<WorkerJobDetailScreenProps> = ({
                   </TouchableOpacity>
                 )}
 
-                {job.status === 'completed' && (
+                {job.status === 'completed' && job.payment_status !== 'paid' && (
+                  <View style={styles.awaitingPaymentBox}>
+                    <View style={styles.awaitingPaymentHeader}>
+                      <View style={styles.awaitingPaymentBadge}>
+                        <Zap size={13} color="#d97706" />
+                        <Text style={styles.awaitingPaymentBadgeText}>SERVICE DONE • AWAITING PAYMENT</Text>
+                      </View>
+                      <Text style={styles.awaitingPaymentAmount}>₹{finalAmount}</Text>
+                    </View>
+                    <Text style={styles.awaitingPaymentDesc}>
+                      Customer sign-off verified! Under cooperative bylaws, customer has been prompted to pay ₹{finalAmount}.
+                    </Text>
+
+                    <View style={styles.awaitingPaymentActions}>
+                      <TouchableOpacity
+                        style={styles.showPaymentQrBtn}
+                        onPress={() => setPaymentQrVisible(true)}
+                        activeOpacity={0.85}
+                      >
+                        <QrCode size={16} color="#ffffff" />
+                        <Text style={styles.showPaymentQrBtnText}>Show Customer UPI QR</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.confirmCashReceivedBtn}
+                        onPress={() => {
+                          Alert.alert(
+                            'Confirm Cash Receipt',
+                            `Did customer hand you ₹${finalAmount} in physical cash?`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              {
+                                text: 'Yes, Received Cash',
+                                onPress: async () => {
+                                  try {
+                                    setUpdating(true);
+                                    await ApiClient.confirmCashPayment(job.id, Number(finalAmount));
+                                    Alert.alert(
+                                      'Payment Settled! ✓',
+                                      `₹${workerTakeHome} (85% net wage) credited to your cooperative account!`
+                                    );
+                                    await fetchJob();
+                                  } catch (err: any) {
+                                    Alert.alert('Error', err.message || 'Could not record cash payment.');
+                                  } finally {
+                                    setUpdating(false);
+                                  }
+                                },
+                              },
+                            ]
+                          );
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Check size={16} color="#059669" />
+                        <Text style={styles.confirmCashReceivedBtnText}>Customer Paid Cash (₹{finalAmount})</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {job.status === 'completed' && job.payment_status === 'paid' && (
                   <View style={styles.completedBox}>
                     <CheckCircle2 size={24} color="#10b981" />
-                    <Text style={styles.completedTitle}>Service Completed & Logged</Text>
+                    <Text style={styles.completedTitle}>Service Completed & Payment Settled ✓</Text>
                     <Text style={styles.completedDesc}>
-                      ₹{workerTakeHome} net wage credited to your cooperative account.
+                      ₹{workerTakeHome} net wage (85%) credited to your cooperative account. ₹{(Number(finalAmount) * 0.1).toFixed(2)} to Welfare Fund.
                     </Text>
+                    <TouchableOpacity
+                      style={[styles.confirmCashReceivedBtn, { backgroundColor: '#10b981', marginTop: 12 }]}
+                      onPress={() => navigation.navigate('Invoice', { bookingId: job.id })}
+                      activeOpacity={0.85}
+                      accessibilityRole="button"
+                      accessibilityLabel="View Tax Invoice & Payout Receipt"
+                    >
+                      <FileText size={16} color="#ffffff" />
+                      <Text style={[styles.confirmCashReceivedBtnText, { color: '#ffffff' }]}>
+                        View Tax Invoice & Payout Receipt
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </View>
@@ -771,10 +853,36 @@ export const WorkerJobDetailScreen: React.FC<WorkerJobDetailScreenProps> = ({
           onClose={() => setScannerVisible(false)}
           onSuccess={async (completedBooking) => {
             Alert.alert(
-              'Job Completed! ✓',
-              `Great job! ₹${completedBooking.final_amount} service verified by customer. 85% wage credited.`
+              'Sign-Off Verified! ✓',
+              `Customer completion pass verified for ${completedBooking.booking_code}. Total bill: ₹${completedBooking.final_amount}. Ask customer to pay via UPI QR or collect cash.`
             );
             await fetchJob();
+          }}
+        />
+      )}
+
+      {/* Customer Payment UPI QR Modal */}
+      {job && (
+        <WorkerPaymentQRModal
+          visible={paymentQrVisible}
+          booking={job}
+          amount={Number(finalAmount)}
+          workerName={job?.worker?.profile?.full_name || 'Ramesh Sharma'}
+          onClose={() => setPaymentQrVisible(false)}
+          onConfirmCash={async () => {
+            try {
+              setUpdating(true);
+              await ApiClient.confirmCashPayment(job.id, Number(finalAmount));
+              Alert.alert(
+                'Payment Settled! ✓',
+                `₹${workerTakeHome} (85% net wage) credited to your cooperative account!`
+              );
+              await fetchJob();
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Could not record cash payment.');
+            } finally {
+              setUpdating(false);
+            }
           }}
         />
       )}
@@ -1217,6 +1325,78 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       color: colors.textMuted,
       textAlign: 'center',
     },
+    awaitingPaymentBox: {
+      padding: 16,
+      borderRadius: 14,
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.14)' : '#fffbeb',
+      borderWidth: 1.5,
+      borderColor: isDark ? 'rgba(245, 158, 11, 0.4)' : '#fde68a',
+      gap: 10,
+    },
+    awaitingPaymentHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    awaitingPaymentBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.25)' : '#fef3c7',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+    },
+    awaitingPaymentBadgeText: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: isDark ? '#fbbf24' : '#b45309',
+      letterSpacing: 0.3,
+    },
+    awaitingPaymentAmount: {
+      fontSize: 18,
+      fontWeight: '900',
+      color: colors.textPrimary,
+    },
+    awaitingPaymentDesc: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 16,
+    },
+    awaitingPaymentActions: {
+      gap: 8,
+      marginTop: 4,
+    },
+    showPaymentQrBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      borderRadius: 10,
+    },
+    showPaymentQrBtnText: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: '#ffffff',
+    },
+    confirmCashReceivedBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5',
+      borderWidth: 1.5,
+      borderColor: '#10b981',
+      paddingVertical: 11,
+      borderRadius: 10,
+    },
+    confirmCashReceivedBtnText: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: '#059669',
+    },
     conflictBanner: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1447,3 +1627,4 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       backgroundColor: '#e11d48',
     },
   });
+

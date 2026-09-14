@@ -128,6 +128,8 @@ export const HERO_BANNERS: HeroBannerItem[] = [
 // QUICK SUGGESTION PILLS FOR DISCOVERY
 // ==============================================================================
 export const QUICK_SUGGESTIONS = [
+  { label: '💳 Pay on Completion', query: 'pay on completion' },
+  { label: '🛡️ Sign-Off & Pay', query: 'sign off' },
   { label: '⚡ Fan Repair', query: 'fan' },
   { label: '🚰 Tap Leak', query: 'tap' },
   { label: '❄️ AC Service', query: 'ac' },
@@ -550,6 +552,83 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         badgeBg: '#FAFBF8',
         icon: HelpCircle,
         onPress: () => navigation.navigate('CustomerProfile'),
+      });
+    }
+
+    // Spare Parts & Materials Policy
+    if (
+      ['part', 'parts', 'spare', 'material', 'materials', 'component', 'estimate', 'quotation', 'diagnostic', 'descaling', 'acid wash', 'supplemental', 'switchboard cost', 'pipe cost', 'सामग्री'].some(k => q.includes(k))
+    ) {
+      matchedActions.push({
+        id: 'action-parts',
+        title: 'Zero-Markup Spare Parts & Estimates Guarantee',
+        subtitle: 'Authentic parts and diagnostic items billed directly at transparent cooperative rates',
+        badge: 'MATERIALS',
+        badgeColor: '#087F5B',
+        badgeBg: '#E8F7F1',
+        icon: Wrench,
+        onPress: () => navigation.navigate('Search'),
+      });
+    }
+
+    // Work Completion Sign-Off & Verification Pass
+    if (
+      [
+        'sign off',
+        'sign-off',
+        'signoff',
+        'completion pin',
+        'completion pass',
+        'verify work',
+        'verify and pay',
+        'verification',
+        'work pass',
+        'otp',
+        'pin',
+        'qr pass',
+        'सत्यापन',
+      ].some(k => q.includes(k))
+    ) {
+      matchedActions.push({
+        id: 'action-signoff',
+        title: 'Work Completion Sign-Off & Verification Pass',
+        subtitle: 'Inspect finished work, view 4-digit PIN / QR pass, and authorize payment to worker',
+        badge: 'SIGN-OFF PASS',
+        badgeColor: '#2B8A3E',
+        badgeBg: '#EBFBEE',
+        icon: ShieldCheck,
+        onPress: () => navigation.navigate('Bookings'),
+      });
+    }
+
+    // Pay on Service Completion (After Pay)
+    if (
+      [
+        'after pay',
+        'afterpay',
+        'pay after',
+        'pay worker',
+        'pay on completion',
+        'payment on completion',
+        'pay bill',
+        'pending payment',
+        'due payment',
+        'pay now',
+        'settle payment',
+        'upi pay',
+        'cash to worker',
+        'भुगतान',
+      ].some(k => q.includes(k))
+    ) {
+      matchedActions.push({
+        id: 'action-afterpay',
+        title: 'Pay on Service Completion (After Pay)',
+        subtitle: 'Settle service bills via UPI, RuPay card or cash only after inspecting finished work',
+        badge: 'AFTER PAY',
+        badgeColor: '#087F5B',
+        badgeBg: '#E8F7F1',
+        icon: CheckCircle,
+        onPress: () => navigation.navigate('Bookings'),
       });
     }
 
@@ -1794,4 +1873,5 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     color: '#087F5B',
   },
 });
+
 

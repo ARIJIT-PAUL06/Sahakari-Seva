@@ -403,15 +403,20 @@ export const NotificationBar: React.FC = () => {
 
 const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   bellBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceSubtle,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.85)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(227, 232, 229, 0.90)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    shadowColor: '#142238',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   bellBtnOpen: {
     backgroundColor: colors.primary,

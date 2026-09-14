@@ -194,75 +194,89 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    paddingVertical: 10
+    paddingVertical: 12,
   },
   chipScroll: {
     paddingHorizontal: 16,
-    gap: 8
+    gap: 8,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingHorizontal: 15,
+    paddingVertical: 7.5,
     borderRadius: 20,
-    backgroundColor: colors.surfaceSubtle,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border
+    borderColor: colors.border,
+    shadowColor: '#142238',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
   activeChip: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
+    backgroundColor: '#087F5B',
+    borderColor: '#087F5B',
+    shadowColor: '#087F5B',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 2,
   },
   chipText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: '600',
-    color: colors.textSecondary
+    color: colors.textSecondary,
   },
   activeChipText: {
-    color: colors.textInverse,
-    fontWeight: '700'
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   controlsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10
+    paddingVertical: 12,
   },
   emergencyToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.danger,
-    backgroundColor: colors.dangerLight
+    borderColor: 'rgba(217, 45, 79, 0.3)',
+    backgroundColor: '#FDECEF',
   },
   emergencyToggleActive: {
-    backgroundColor: colors.danger,
-    borderColor: colors.danger
+    backgroundColor: '#D92D4F',
+    borderColor: '#D92D4F',
   },
   emergencyToggleText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: colors.danger
+    color: '#D92D4F',
   },
   mapSwitchBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.primaryLight
+    borderColor: colors.border,
+    shadowColor: '#142238',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   mapSwitchBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.primary
+    color: '#087F5B',
   },
   listContent: {
     padding: 16,

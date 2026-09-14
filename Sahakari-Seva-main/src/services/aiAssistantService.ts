@@ -21,10 +21,13 @@ export type AssistantIntentType =
   | 'ACCEPT_JOB'
   | 'DECLINE_JOB'
   | 'DIAGNOSE_PARTS'
+  | 'SEND_ESTIMATE'
   | 'LIST_JOBS'
   | 'EMERGENCY_REQUEST'
   | 'CUSTOMER_INFO'
   | 'EARNINGS_WELFARE'
+  | 'PAYMENT_STATUS'
+  | 'CONFIRM_CASH'
   | 'READ_ALOUD'
   | 'HELP'
   | 'UNKNOWN';
@@ -68,6 +71,7 @@ export interface WorkerAssistantContext {
   activeOnSiteJob: Booking | null;      // status === 'in_progress'
   nextCommittedJob: Booking | null;     // status === 'accepted'
   pendingJobs: Booking[];               // status === 'pending'
+  awaitingPaymentJob: Booking | null;   // status === 'completed' && payment_status !== 'paid'
   allJobs: Booking[];
   todayCompletedCount: number;
   todayEarnings: number;
@@ -76,6 +80,7 @@ export interface WorkerAssistantContext {
 export class AIAssistantService {
   private static recognitionInstance: any = null;
   private static isListeningActive: boolean = false;
+  private static speechSafetyTimer: any = null;
 
   // ---------------------------------------------------------------------------
   // 1. SPEECH-TO-TEXT (STT)
@@ -157,16 +162,19 @@ export class AIAssistantService {
   }
 
   // ---------------------------------------------------------------------------
-  // 2. TEXT-TO-SPEECH (TTS)
+  // 2. TEXT-TO-SPEECH (TTS) WITH CHROMIUM HANG SAFEGUARD
   // ---------------------------------------------------------------------------
   public static isSpeechSynthesisSupported(): boolean {
     return typeof window !== 'undefined' && 'speechSynthesis' in window;
   }
 
   public static speak(text: string, onEnd?: () => void): void {
-    if (!this.isSpeechSynthesisSupported()) return;
+    if (!this.isSpeechSynthesisSupported()) {
+      if (onEnd) onEnd();
+      return;
+    }
     try {
-      window.speechSynthesis.cancel();
+      this.stopSpeaking();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
@@ -179,16 +187,42 @@ export class AIAssistantService {
         utterance.voice = preferred;
       }
 
-      if (onEnd) {
-        utterance.onend = onEnd;
-      }
+      let ended = false;
+      const cleanup = () => {
+        if (!ended) {
+          ended = true;
+          if (this.speechSafetyTimer) {
+            clearTimeout(this.speechSafetyTimer);
+            this.speechSafetyTimer = null;
+          }
+          if (onEnd) onEnd();
+        }
+      };
+
+      utterance.onend = cleanup;
+      utterance.onerror = cleanup;
+
+      // Safety timeout for Chromium speech synthesis bug where onend fails to fire
+      const safetyDuration = Math.min(14000, Math.max(3500, text.length * 90));
+      this.speechSafetyTimer = setTimeout(() => {
+        if (!ended) {
+          this.stopSpeaking();
+          cleanup();
+        }
+      }, safetyDuration);
+
       window.speechSynthesis.speak(utterance);
     } catch (e) {
       console.warn('Speech synthesis unavailable', e);
+      if (onEnd) onEnd();
     }
   }
 
   public static stopSpeaking(): void {
+    if (this.speechSafetyTimer) {
+      clearTimeout(this.speechSafetyTimer);
+      this.speechSafetyTimer = null;
+    }
     if (this.isSpeechSynthesisSupported()) {
       try {
         window.speechSynthesis.cancel();
@@ -229,7 +263,44 @@ export class AIAssistantService {
   // 3. INTENT CLASSIFICATION
   // ---------------------------------------------------------------------------
   public static classifyIntent(input: string): AssistantIntentType {
-    const s = input.toLowerCase().trim();
+    const s = input
+      .toLowerCase()
+      .trim()
+      .replace(/\bd[\s-]scaling\b/g, 'descaling')
+      .replace(/\bde[\s-]scaling\b/g, 'descaling');
+
+    // 0. Confirm Cash Payment (Pay on Completion / After Pay)
+    if (
+      s.includes('cash paid') ||
+      s.includes('received cash') ||
+      s.includes('confirm cash') ||
+      s.includes('got cash') ||
+      s.includes('cash mil gaya') ||
+      s.includes('nakad mila') ||
+      s.includes('nakad mil gaya') ||
+      s.includes('customer paid cash') ||
+      (s.includes('cash') && (s.includes('pay') || s.includes('receive') || s.includes('collect') || s.includes('le liya')))
+    ) {
+      return 'CONFIRM_CASH';
+    }
+
+    // 0.1 Check Payment Status / After Pay flow
+    if (
+      s.includes('after pay') ||
+      s.includes('pay after') ||
+      s.includes('payment status') ||
+      s.includes('did customer pay') ||
+      s.includes('has customer paid') ||
+      s.includes('check payment') ||
+      s.includes('collect payment') ||
+      s.includes('show qr') ||
+      s.includes('payment qr') ||
+      s.includes('payment due') ||
+      s.includes('paisa mila') ||
+      s.includes('bhugtan')
+    ) {
+      return 'PAYMENT_STATUS';
+    }
 
     // 1. Complete work (must come before general checks)
     if (
@@ -237,6 +308,14 @@ export class AIAssistantService {
       s.includes('finish') ||
       s.includes('done') ||
       s.includes('mark complete') ||
+      s.includes('sign off') ||
+      s.includes('sign-off') ||
+      s.includes('signoff') ||
+      s.includes('request sign') ||
+      s.includes('customer verification') ||
+      s.includes('grahak ko verify') ||
+      s.includes('grahak ko sign') ||
+      s.includes('verify work') ||
       s.includes('pura') ||
       s.includes('poora') ||
       s.includes('khatam') ||
@@ -294,8 +373,30 @@ export class AIAssistantService {
       return 'EMERGENCY_REQUEST';
     }
 
-    // Diagnose extra parts / billing / repairs across all trades
+    // 6. Send estimate / submit supplemental bill (crucial before generic parts check)
     if (
+      s.includes('estimate') ||
+      s.includes('quotation') ||
+      s.includes('send quote') ||
+      s.includes('submit estimate') ||
+      s.includes('send estimate') ||
+      s.includes('send bill') ||
+      s.includes('bhejo') ||
+      s.includes('bhej do') ||
+      (s.includes('send') && (s.includes('part') || s.includes('cost') || s.includes('price') || s.includes('diag')))
+    ) {
+      return 'SEND_ESTIMATE';
+    }
+
+    // 7. Diagnose extra parts / billing / repairs across all trades
+    if (
+      s.startsWith('add ') ||
+      s.startsWith('include ') ||
+      s.startsWith('need ') ||
+      s.startsWith('attach ') ||
+      s.startsWith('jodo ') ||
+      s.startsWith('daalo ') ||
+      s.startsWith('lagao ') ||
       s.includes('part') ||
       s.includes('parts') ||
       s.includes('diagnos') ||
@@ -303,9 +404,11 @@ export class AIAssistantService {
       s.includes('kharab') ||
       s.includes('repair') ||
       s.includes('spare') ||
+      s.includes('spares') ||
       s.includes('bill') ||
       s.includes('extra') ||
       s.includes('saman') ||
+      s.includes('samagri') ||
       s.includes('switch') ||
       s.includes('capacitor') ||
       s.includes('valve') ||
@@ -316,7 +419,33 @@ export class AIAssistantService {
       s.includes('mcb') ||
       s.includes('putty') ||
       s.includes('wire') ||
-      s.includes('pump')
+      s.includes('pump') ||
+      s.includes('wash') ||
+      s.includes('acid') ||
+      s.includes('scaling') ||
+      s.includes('descaling') ||
+      s.includes('cleaning') ||
+      s.includes('clean') ||
+      s.includes('tap') ||
+      s.includes('drain') ||
+      s.includes('motor') ||
+      s.includes('tank') ||
+      s.includes('filter') ||
+      s.includes('leak') ||
+      s.includes('blockage') ||
+      s.includes('door') ||
+      s.includes('wood') ||
+      s.includes('paint') ||
+      s.includes('primer') ||
+      s.includes('damp') ||
+      s.includes('disinfect') ||
+      s.includes('grease') ||
+      s.includes('upholstery') ||
+      s.includes('steam') ||
+      s.includes('pruning') ||
+      s.includes('thermostat') ||
+      s.includes('refrigerant') ||
+      s.includes('relay')
     ) {
       return 'DIAGNOSE_PARTS';
     }
@@ -394,14 +523,36 @@ export class AIAssistantService {
   // ---------------------------------------------------------------------------
   // 4. WORKER CONTEXT RESOLVER
   // ---------------------------------------------------------------------------
+  public static async resolveWorkerId(providedId?: string): Promise<string> {
+    if (providedId && providedId.trim()) return providedId.trim();
+    try {
+      const SESSION_STORAGE_KEY = '@sahakari_user_session';
+      let raw: string | null = null;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+      }
+      if (!raw) {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        raw = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
+      }
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.user?.id) return parsed.user.id;
+      }
+    } catch {}
+    return 'w0000000-0000-0000-0000-000000000001';
+  }
+
   public static async getWorkerContext(
-    workerId: string = 'w0000000-0000-0000-0000-000000000001'
+    workerId?: string
   ): Promise<WorkerAssistantContext> {
-    const allBookings = await ApiClient.getBookings(undefined, workerId);
+    const activeWorkerId = await this.resolveWorkerId(workerId);
+    const allBookings = await ApiClient.getBookings(undefined, activeWorkerId);
 
     const activeOnSiteJob = allBookings.find(b => b.status === 'in_progress') || null;
     const nextCommittedJob = allBookings.find(b => b.status === 'accepted') || null;
     const pendingJobs = allBookings.filter(b => b.status === 'pending');
+    const awaitingPaymentJob = allBookings.find(b => b.status === 'completed' && b.payment_status !== 'paid') || null;
 
     const completedList = allBookings.filter(b => b.status === 'completed');
     const todayCompletedCount = completedList.length;
@@ -414,6 +565,7 @@ export class AIAssistantService {
       activeOnSiteJob,
       nextCommittedJob,
       pendingJobs,
+      awaitingPaymentJob,
       allJobs: allBookings,
       todayCompletedCount,
       todayEarnings,
@@ -425,10 +577,11 @@ export class AIAssistantService {
   // ---------------------------------------------------------------------------
   public static async executeCommand(
     commandText: string,
-    workerId: string = 'w0000000-0000-0000-0000-000000000001'
+    workerId?: string
   ): Promise<AssistantActionOutcome> {
+    const activeWorkerId = await this.resolveWorkerId(workerId);
     const intent = this.classifyIntent(commandText);
-    const context = await this.getWorkerContext(workerId);
+    const context = await this.getWorkerContext(activeWorkerId);
 
     switch (intent) {
       case 'START_WORK': {
@@ -446,6 +599,7 @@ export class AIAssistantService {
               actions: [
                 { label: `✓ Complete ${context.activeOnSiteJob.booking_code}`, command: `complete job`, variant: 'success' },
                 { label: '🔧 Add Extra Parts', command: 'add diagnostic parts', variant: 'primary' },
+                { label: '📞 Call Customer', command: `call_phone:${context.activeOnSiteJob.customer?.phone || '+919855044556'}`, variant: 'neutral' },
               ],
             },
           };
@@ -499,7 +653,7 @@ export class AIAssistantService {
               actions: [
                 { label: '🔧 Add Extra Parts & Tasks', command: 'add diagnostic parts', variant: 'warning' },
                 { label: `✓ Complete Job (Claim ₹${wage})`, command: 'complete job', variant: 'success' },
-                { label: '📞 Call Customer', command: 'customer contact', variant: 'neutral' },
+                { label: '📞 Call Customer', command: `call_phone:${target.customer?.phone || '+919855044556'}`, variant: 'neutral' },
               ],
             },
           };
@@ -514,9 +668,52 @@ export class AIAssistantService {
       }
 
       case 'COMPLETE_WORK': {
-        const target = context.activeOnSiteJob || context.nextCommittedJob;
-        if (!target) {
-          const msg = `You don't have any active service jobs to complete right now.`;
+        // Enforce that work must actually be in progress before completing!
+        if (!context.activeOnSiteJob) {
+          if (context.awaitingPaymentJob) {
+            const tgt = context.awaitingPaymentJob;
+            const amt = Number(tgt.final_amount || tgt.estimated_amount || 0);
+            const wage = (amt * 0.85).toFixed(0);
+            const msg = `Job ${tgt.booking_code} has already been verified and signed off! Payment of ₹${amt} is currently awaiting settlement from the customer.\n\nDirect wage of ₹${wage} will be credited upon customer payment.`;
+            return {
+              success: true,
+              intent,
+              message: msg,
+              speechText: `Job ${tgt.booking_code} is already completed and awaiting customer payment of ${amt} rupees.`,
+              affectedBookingId: tgt.id,
+              card: {
+                id: 'card-pay-due-' + Date.now(),
+                type: 'action_buttons',
+                booking: tgt,
+                actions: [
+                  { label: '📱 Show Customer UPI QR', command: `open_payment_qr:${tgt.id}`, variant: 'primary' },
+                  { label: `💵 Received Cash (₹${amt})`, command: `confirm_cash:${tgt.id}`, variant: 'success' },
+                  { label: '📞 Call Customer', command: `call_phone:${tgt.customer?.phone || '+919855044556'}`, variant: 'neutral' },
+                ],
+              },
+            };
+          }
+
+          if (context.nextCommittedJob) {
+            const msg = `Job ${context.nextCommittedJob.booking_code} has not been started yet. Tap 'Start Service Work' when you arrive on-site before requesting completion sign-off.`;
+            return {
+              success: false,
+              intent,
+              message: msg,
+              speechText: `Job ${context.nextCommittedJob.booking_code} has not been started yet. Please start the service first.`,
+              card: {
+                id: 'card-start-req-' + Date.now(),
+                type: 'action_buttons',
+                booking: context.nextCommittedJob,
+                actions: [
+                  { label: `⚡ Start ${context.nextCommittedJob.booking_code}`, command: 'start work', variant: 'success' },
+                  { label: '📞 Call Customer', command: `call_phone:${context.nextCommittedJob.customer?.phone || '+919855044556'}`, variant: 'neutral' },
+                ],
+              },
+            };
+          }
+
+          const msg = `You don't have an active on-site service job to complete right now.`;
           return {
             success: false,
             intent,
@@ -524,6 +721,8 @@ export class AIAssistantService {
             speechText: msg,
           };
         }
+
+        const target = context.activeOnSiteJob;
 
         try {
           if (!target.completion_requested) {
@@ -545,7 +744,8 @@ export class AIAssistantService {
                 type: 'job_summary',
                 booking: target,
                 actions: [
-                  { label: '📷 Open QR Scanner', command: 'my jobs', variant: 'primary' },
+                  { label: '📷 Open QR Scanner', command: `open_scanner:${target.id}`, variant: 'primary' },
+                  { label: '📞 Call Customer', command: `call_phone:${target.customer?.phone || '+919855044556'}`, variant: 'neutral' },
                 ],
               },
             };
@@ -559,6 +759,32 @@ export class AIAssistantService {
           const totalAmt = Number(target.final_amount || target.estimated_amount || 0);
           const wageAmt = (totalAmt * 0.85).toFixed(2);
           const welfareAmt = (totalAmt * 0.10).toFixed(2);
+
+          // If payment was not prepaid (After Pay / Pay on Completion)
+          if (target.payment_status !== 'paid') {
+            const msg = `🎉 Physical work on job ${target.booking_code} verified and completed!\n\n💳 Payment of ₹${totalAmt} is due from the customer (Pay on Completion).\nYour ₹${wageAmt} direct wage will be credited as soon as customer pays via UPI / Card or you confirm cash collection below:`;
+            const speech = `Physical work completed for job ${target.booking_code}. Payment of ${totalAmt} rupees is due from customer. Collect cash or show your UPI QR code.`;
+
+            return {
+              success: true,
+              intent,
+              message: msg,
+              speechText: speech,
+              affectedBookingId: target.id,
+              actionTaken: 'completed',
+              card: {
+                id: 'card-pay-collect-' + Date.now(),
+                type: 'action_buttons',
+                booking: target,
+                actions: [
+                  { label: '📱 Show Customer UPI QR', command: `open_payment_qr:${target.id}`, variant: 'primary' },
+                  { label: `💵 Customer Paid Cash (₹${totalAmt})`, command: `confirm_cash:${target.id}`, variant: 'success' },
+                  { label: '📞 Call Customer', command: `call_phone:${target.customer?.phone || '+919855044556'}`, variant: 'neutral' },
+                ],
+              },
+            };
+          }
+
           const isEmerg = target.is_emergency;
           const msg = isEmerg
             ? `🎉 EMERGENCY SOS job ${target.booking_code} completed via customer QR sign-off! ₹${wageAmt} direct wage credited (85%), and ₹${welfareAmt} credited to your Welfare Fund (10%). Your active duty status has automatically reverted to "Active for work".`
@@ -580,7 +806,7 @@ export class AIAssistantService {
               booking: target,
               actions: [
                 { label: '💰 Check Full Earnings', command: 'earnings summary', variant: 'primary' },
-                { label: '📋 View Remaining Jobs', command: 'my jobs', variant: 'neutral' },
+                { label: '📋 View Schedule', command: 'navigate_jobs', variant: 'neutral' },
               ],
             },
           };
@@ -592,6 +818,127 @@ export class AIAssistantService {
             speechText: `Completion failed: ${err.message}`,
           };
         }
+      }
+
+      case 'CONFIRM_CASH': {
+        const codeMatch = commandText.match(/BK-\d+/i) || commandText.match(/[a-f0-9-]{36}/i);
+        let target = context.awaitingPaymentJob;
+        if (codeMatch) {
+          const matchedStr = codeMatch[0].toLowerCase();
+          const found = context.allJobs.find(
+            pj => pj.booking_code.toLowerCase() === matchedStr || pj.id.toLowerCase() === matchedStr
+          );
+          if (found) target = found;
+        }
+
+        if (!target) {
+          target = context.allJobs.find(b => b.status === 'completed' && b.payment_status !== 'paid') || null;
+        }
+
+        if (!target) {
+          const msg = `You don't have any completed jobs currently awaiting cash payment collection.`;
+          return {
+            success: false,
+            intent,
+            message: msg,
+            speechText: msg,
+          };
+        }
+
+        try {
+          const finalAmt = target.final_amount || target.estimated_amount || 0;
+          await ApiClient.confirmCashPayment(target.id, finalAmt);
+          DeviceEventEmitter.emit('app_booking_updated');
+
+          const wageAmt = (Number(finalAmt) * 0.85).toFixed(0);
+          const welfareAmt = (Number(finalAmt) * 0.10).toFixed(0);
+          const msg = `🎉 Cash payment of ₹${finalAmt} for job ${target.booking_code} confirmed!\n\n• Direct Wage Credited: ₹${wageAmt} (85%)\n• Welfare Reserve: ₹${welfareAmt} (10%)\n• Platform Fee: 5%\n• Receipt: Cash receipt recorded in cooperative ledger.`;
+          const speech = `Cash payment of ${finalAmt} rupees confirmed for job ${target.booking_code}. Direct wage of ${wageAmt} rupees credited.`;
+
+          return {
+            success: true,
+            intent,
+            message: msg,
+            speechText: speech,
+            affectedBookingId: target.id,
+            actionTaken: 'completed',
+            card: {
+              id: 'card-cash-confirmed-' + Date.now(),
+              type: 'earnings_summary',
+              booking: target,
+              actions: [
+                { label: '💰 Check My Earnings', command: 'earnings summary', variant: 'primary' },
+                { label: '📋 View Schedule', command: 'navigate_jobs', variant: 'neutral' },
+              ],
+            },
+          };
+        } catch (err: any) {
+          return {
+            success: false,
+            intent,
+            message: `Could not confirm cash payment: ${err.message}`,
+            speechText: `Action failed: ${err.message}`,
+          };
+        }
+      }
+
+      case 'PAYMENT_STATUS': {
+        const target = context.awaitingPaymentJob || context.allJobs.find(b => b.status === 'completed') || context.activeOnSiteJob;
+        if (!target) {
+          const msg = `You have no completed jobs with pending payment. All accounts are settled!`;
+          return {
+            success: true,
+            intent,
+            message: msg,
+            speechText: msg,
+          };
+        }
+
+        const isPaid = target.payment_status === 'paid';
+        const finalAmt = target.final_amount || target.estimated_amount || 0;
+        const wageAmt = (Number(finalAmt) * 0.85).toFixed(0);
+
+        if (isPaid) {
+          const msg = `✅ Payment of ₹${finalAmt} for job ${target.booking_code} is settled in full! ₹${wageAmt} direct wage is credited to your balance.`;
+          return {
+            success: true,
+            intent,
+            message: msg,
+            speechText: `Payment of ${finalAmt} rupees for ${target.booking_code} is settled in full.`,
+            card: {
+              id: 'card-pay-settled-' + Date.now(),
+              type: 'action_buttons',
+              booking: target,
+              actions: [
+                { label: '💰 Check Earnings & Welfare', command: 'earnings summary', variant: 'primary' },
+                { label: '📋 View Schedule', command: 'navigate_jobs', variant: 'neutral' },
+              ],
+            },
+          };
+        }
+
+        // Pending Payment (Pay on Completion / After Pay)
+        const custName = target.customer?.full_name || 'Customer';
+        const msg = `⏳ Job ${target.booking_code} is finished, but Payment of ₹${finalAmt} is due from ${custName}.\n\n• Payment Mode: Pay on Completion (After Pay)\n• Direct Wage: ₹${wageAmt} (credited upon customer UPI / Card or cash payment)\n\nShow the UPI QR code to the customer or confirm cash receipt below:`;
+        const speech = `Job ${target.booking_code} is completed. Payment of ${finalAmt} rupees is due from ${custName}. Show your UPI QR or confirm cash payment.`;
+
+        return {
+          success: true,
+          intent,
+          message: msg,
+          speechText: speech,
+          affectedBookingId: target.id,
+          card: {
+            id: 'card-pay-due-' + Date.now(),
+            type: 'action_buttons',
+            booking: target,
+            actions: [
+              { label: '📱 Show Customer UPI QR', command: `open_payment_qr:${target.id}`, variant: 'primary' },
+              { label: `💵 Received Cash (₹${finalAmt})`, command: `confirm_cash:${target.id}`, variant: 'success' },
+              { label: '📞 Call Customer', command: `call_phone:${target.customer?.phone || '+919855044556'}`, variant: 'neutral' },
+            ],
+          },
+        };
       }
 
       case 'ACCEPT_JOB': {
@@ -669,13 +1016,13 @@ export class AIAssistantService {
               actions: isEmerg
                 ? [
                     { label: `⚡ Start Emergency Work (${safeJob.booking_code})`, command: `start work on ${safeJob.booking_code}`, variant: 'success' },
-                    { label: '📞 Call Customer Instantly', command: 'customer contact', variant: 'warning' },
-                    { label: '📋 View All Jobs', command: 'my jobs', variant: 'neutral' },
+                    { label: '📞 Call Customer Instantly', command: `call_phone:${safeJob.customer?.phone || '+919855044556'}`, variant: 'warning' },
+                    { label: '📋 View Schedule', command: 'navigate_jobs', variant: 'neutral' },
                   ]
                 : [
                     { label: `⚡ Start ${safeJob.booking_code}`, command: `start work on ${safeJob.booking_code}`, variant: 'success' },
-                    { label: '📞 Customer Details', command: 'customer contact', variant: 'neutral' },
-                    { label: '📋 View All Jobs', command: 'my jobs', variant: 'neutral' },
+                    { label: '📞 Call Customer', command: `call_phone:${safeJob.customer?.phone || '+919855044556'}`, variant: 'neutral' },
+                    { label: '📋 View Schedule', command: 'navigate_jobs', variant: 'neutral' },
                   ],
             },
           };
@@ -722,8 +1069,8 @@ export class AIAssistantService {
               booking: topEmergency,
               actions: [
                 { label: `🚨 Accept Emergency Dispatch`, command: `accept job ${topEmergency.booking_code}`, variant: 'danger' },
-                { label: '📞 Call Customer Instantly', command: 'customer contact', variant: 'warning' },
-                { label: '📋 View All Requests', command: 'list available requests', variant: 'neutral' },
+                { label: '📞 Call Customer Instantly', command: `call_phone:${topEmergency.customer?.phone || '+919855044556'}`, variant: 'warning' },
+                { label: '📋 View All Requests', command: 'navigate_jobs', variant: 'neutral' },
               ],
             },
           };
@@ -750,7 +1097,7 @@ export class AIAssistantService {
               booking: activeEmergency,
               actions: [
                 { label: isOnSite ? '✓ Complete Emergency Job' : `⚡ Start Emergency Work`, command: isOnSite ? 'complete job' : 'start work', variant: 'success' },
-                { label: '📞 Call Customer Instantly', command: 'customer contact', variant: 'warning' },
+                { label: '📞 Call Customer Instantly', command: `call_phone:${activeEmergency.customer?.phone || '+919855044556'}`, variant: 'warning' },
                 { label: '🔧 Add Extra Parts & Tasks', command: 'add diagnostic parts', variant: 'primary' },
               ],
             },
@@ -824,11 +1171,15 @@ export class AIAssistantService {
         }
 
         // Determine booking trade category
-        const bookingTrade = target.service_category?.name || 'Electrical';
+        let bookingTrade = target.service_category?.name || 'Electrical';
 
-        // Check if user specifically requested items by keyword
-        const lowerCmd = commandText.toLowerCase();
+        // Check if user specifically requested items by keyword with speech normalization
+        const lowerCmd = commandText
+          .toLowerCase()
+          .replace(/\bd[\s-]scaling\b/g, 'descaling')
+          .replace(/\bde[\s-]scaling\b/g, 'descaling');
         const preSelectedTitles: string[] = [];
+        let matchedTradeCategory: string | null = null;
 
         for (const tradeKey of Object.keys(TRADE_SUGGESTIONS)) {
           for (const item of TRADE_SUGGESTIONS[tradeKey]) {
@@ -836,15 +1187,27 @@ export class AIAssistantService {
             const isMatch = keywords.some(kw => kw.length > 3 && lowerCmd.includes(kw));
             if (isMatch && !preSelectedTitles.includes(item.title)) {
               preSelectedTitles.push(item.title);
+              if (!matchedTradeCategory) {
+                matchedTradeCategory = tradeKey;
+              }
             }
           }
         }
 
-        const msg = preSelectedTitles.length > 0
-          ? `I found ${preSelectedTitles.length} matching diagnostic item${preSelectedTitles.length > 1 ? 's' : ''} for job ${target.booking_code}. Review, select more items across trades, or send the estimate:`
+        // If a specific trade was matched from an item, focus on that trade in the picker!
+        if (matchedTradeCategory) {
+          bookingTrade = matchedTradeCategory;
+        }
+
+        const msg = preSelectedTitles.length === 1
+          ? `✅ Selected "${preSelectedTitles[0]}" for job ${target.booking_code}. Review details below, select additional items, or send the estimate:`
+          : preSelectedTitles.length > 1
+          ? `I found ${preSelectedTitles.length} matching diagnostic items for job ${target.booking_code}. Review, select more items across trades, or send the estimate:`
           : `Select diagnostic parts or extra tasks for job ${target.booking_code} from all available trades below:`;
 
-        const speech = preSelectedTitles.length > 0
+        const speech = preSelectedTitles.length === 1
+          ? `Added ${preSelectedTitles[0]} to estimate. Review or tap send estimate when ready.`
+          : preSelectedTitles.length > 1
           ? `Found ${preSelectedTitles.length} matching items. Review and send estimate to customer.`
           : `Select the extra parts or repairs needed for this job.`;
 
@@ -866,6 +1229,141 @@ export class AIAssistantService {
         };
       }
 
+      case 'SEND_ESTIMATE': {
+        const target = context.activeOnSiteJob || context.nextCommittedJob;
+        if (!target) {
+          const msg = `You need an active on-site job to send a supplemental diagnostic estimate.`;
+          return {
+            success: false,
+            intent,
+            message: msg,
+            speechText: msg,
+          };
+        }
+
+        const lowerCmd = commandText
+          .toLowerCase()
+          .replace(/\bd[\s-]scaling\b/g, 'descaling')
+          .replace(/\bde[\s-]scaling\b/g, 'descaling');
+
+        // 1. Check if catalogue items were mentioned in speech
+        const matchedItems: ExtraTaskItem[] = [];
+        let detectedTrade = target.service_category?.name || 'Electrical';
+
+        for (const tradeKey of Object.keys(TRADE_SUGGESTIONS)) {
+          for (const item of TRADE_SUGGESTIONS[tradeKey]) {
+            const keywords = item.title.toLowerCase().split(/[\s\-&()µ/.]+/);
+            const isMatch = keywords.some(kw => kw.length > 3 && lowerCmd.includes(kw));
+            if (isMatch && !matchedItems.some(it => it.title === item.title)) {
+              matchedItems.push({
+                id: 'part-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+                title: item.title,
+                cost: item.cost,
+                type: item.type,
+              });
+              detectedTrade = tradeKey;
+            }
+          }
+        }
+
+        // If items were matched directly from the command, submit them!
+        if (matchedItems.length > 0) {
+          try {
+            const res = await AIAssistantService.submitDiagnosticItems(target.id, matchedItems);
+            const itemSummary = matchedItems.map(i => `${i.title} (₹${i.cost})`).join(', ');
+            return {
+              success: true,
+              intent,
+              message: `✅ ${res.message}\nItemized: ${itemSummary}`,
+              speechText: `Estimate of ${res.total} rupees sent to customer for authorization.`,
+              affectedBookingId: target.id,
+              actionTaken: 'diagnosed',
+              card: {
+                id: 'card-diag-sent-' + Date.now(),
+                type: 'action_buttons',
+                booking: target,
+                actions: [
+                  { label: '✓ Complete Job When Ready', command: 'complete job', variant: 'success' },
+                  { label: '🔧 Add More Parts', command: 'add diagnostic parts', variant: 'neutral' },
+                ],
+              },
+            };
+          } catch (err: any) {
+            return {
+              success: false,
+              intent,
+              message: `Could not send estimate: ${err.message}`,
+              speechText: `Could not send estimate: ${err.message}`,
+            };
+          }
+        }
+
+        // 2. Check if a specific numeric cost was given (e.g. "send estimate for 250")
+        const costMatch = lowerCmd.match(/(?:₹|rs\.?|inr)?\s*(\d{2,5})/i);
+        const specifiedCost = costMatch ? parseInt(costMatch[1], 10) : 0;
+
+        if (specifiedCost > 0) {
+          let desc = lowerCmd
+            .replace(/send|estimate|bhejo|bhej|do|for|of|₹|rs\.?|inr|\d+/gi, '')
+            .trim();
+          if (!desc || desc.length < 3) desc = 'Diagnostic Defect Correction & Materials';
+
+          const customItem: ExtraTaskItem = {
+            id: 'part-voice-' + Date.now(),
+            title: desc.charAt(0).toUpperCase() + desc.slice(1),
+            cost: specifiedCost,
+            type: 'repair',
+          };
+
+          try {
+            const res = await AIAssistantService.submitDiagnosticItems(target.id, [customItem]);
+            return {
+              success: true,
+              intent,
+              message: `✅ ${res.message}\nItemized: ${customItem.title} (₹${customItem.cost})`,
+              speechText: `Estimate of ${res.total} rupees sent to customer for authorization.`,
+              affectedBookingId: target.id,
+              actionTaken: 'diagnosed',
+              card: {
+                id: 'card-diag-custom-' + Date.now(),
+                type: 'action_buttons',
+                booking: target,
+                actions: [
+                  { label: '✓ Complete Job When Ready', command: 'complete job', variant: 'success' },
+                  { label: '🔧 Add More Parts', command: 'add diagnostic parts', variant: 'neutral' },
+                ],
+              },
+            };
+          } catch (err: any) {
+            return {
+              success: false,
+              intent,
+              message: `Could not send estimate: ${err.message}`,
+              speechText: `Could not send estimate: ${err.message}`,
+            };
+          }
+        }
+
+        // 3. Fallback: Prompt user to choose items from trade suggestions
+        const bookingTrade = target.service_category?.name || 'Electrical';
+        return {
+          success: true,
+          intent,
+          message: `Please select the parts or repairs to include in the estimate for ${target.booking_code}, or state the amount (e.g. "send estimate of ₹200 for pipe repair"):`,
+          speechText: `Please select the parts to include, or tell me the amount. Here is the parts selector:`,
+          affectedBookingId: target.id,
+          card: {
+            id: 'card-estimate-picker-' + Date.now(),
+            type: 'parts_picker',
+            booking: target,
+            category: bookingTrade,
+            availableTrades: Object.keys(TRADE_SUGGESTIONS),
+            tradeSuggestions: TRADE_SUGGESTIONS,
+            preSelectedTitles: [],
+          },
+        };
+      }
+
       case 'CUSTOMER_INFO': {
         const target = context.activeOnSiteJob || context.nextCommittedJob || context.pendingJobs[0];
         if (!target) {
@@ -878,7 +1376,7 @@ export class AIAssistantService {
           };
         }
 
-        const custName = target.customer?.full_name || 'Kavita Reddy';
+        const custName = target.customer?.full_name || 'Customer';
         const phone = target.customer?.phone || '+91 98550 44556';
         const addr = target.address || 'Plot 21, Jagatpura, Jaipur, Rajasthan - 302027';
 
@@ -895,6 +1393,7 @@ export class AIAssistantService {
             type: 'action_buttons',
             booking: target,
             actions: [
+              { label: `📞 Call ${custName}`, command: `call_phone:${phone}`, variant: 'primary' },
               { label: target.status === 'in_progress' ? '✓ Complete Job' : '⚡ Start Service Work', command: target.status === 'in_progress' ? 'complete job' : 'start work', variant: 'success' },
               { label: '🔊 Read Aloud', command: 'read details aloud', variant: 'neutral' },
             ],
@@ -948,6 +1447,7 @@ export class AIAssistantService {
               ...(inProgress.length > 0 ? [{ label: `✓ Complete ${inProgress[0].booking_code}`, command: 'complete job', variant: 'success' as const }] : []),
               ...(accepted.length > 0 && inProgress.length === 0 ? [{ label: `⚡ Start ${accepted[0].booking_code}`, command: 'start work', variant: 'success' as const }] : []),
               ...(pending.length > 0 && inProgress.length === 0 ? [{ label: `Accept ${pending[0].booking_code}`, command: 'accept job', variant: 'primary' as const }] : []),
+              { label: '📅 Open Schedule', command: 'navigate_jobs', variant: 'neutral' as const },
               { label: '💰 Check Earnings', command: 'earnings summary', variant: 'neutral' as const },
             ],
           },
@@ -1037,7 +1537,7 @@ export class AIAssistantService {
             actions: [
               ...(inProg ? [{ label: `✓ Complete ${inProg.booking_code}`, command: 'complete job', variant: 'success' as const }] : []),
               ...(accepted && !inProg ? [{ label: `⚡ Start ${accepted.booking_code}`, command: 'start work', variant: 'success' as const }] : []),
-              { label: '📋 Show My Jobs', command: 'my jobs', variant: 'neutral' as const },
+              { label: '📅 Open Schedule', command: 'navigate_jobs', variant: 'neutral' as const },
               { label: '💰 My Earnings', command: 'earnings summary', variant: 'neutral' as const },
             ],
           } : undefined,
@@ -1046,3 +1546,4 @@ export class AIAssistantService {
     }
   }
 }
+

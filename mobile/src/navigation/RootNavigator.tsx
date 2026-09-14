@@ -91,20 +91,20 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const makeTabBarBase = (colors: Palette, isDark: boolean) => ({
   headerShown: false,
-  tabBarActiveTintColor: colors.primary,
-  tabBarInactiveTintColor: colors.textMuted,
+  tabBarActiveTintColor: '#087F5B',
+  tabBarInactiveTintColor: '#667085',
   tabBarStyle: {
-    backgroundColor: colors.surface,
-    borderTopWidth: 1.2,
-    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0',
-    height: 66,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E3E8E5',
+    height: 64,
     paddingBottom: 8,
     paddingTop: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 6,
   },
 });
 
@@ -126,13 +126,13 @@ function TabIcon({
       style={{
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 2.5,
+        paddingHorizontal: 12,
+        paddingVertical: 3,
         borderRadius: 12,
-        backgroundColor: focused ? colors.primaryLight : 'transparent',
+        backgroundColor: focused ? '#E8F7F1' : 'transparent',
       }}
     >
-      <Icon size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+      <Icon size={size} color={focused ? '#087F5B' : '#667085'} strokeWidth={focused ? 2.2 : 1.8} />
     </View>
   );
 }
@@ -216,6 +216,7 @@ function CustomerStackNavigator() {
       <Stack.Screen name="BookingCreate" component={BookingCreateScreen} />
       <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <Stack.Screen name="Invoice" component={InvoiceScreen} />
+      <Stack.Screen name="WorkerWelfare" component={WorkerWelfareScreen} />
     </Stack.Navigator>
   );
 }
@@ -297,6 +298,7 @@ function WorkerStackNavigator() {
       <Stack.Screen name="WorkerJobDetail" component={WorkerJobDetailScreen} />
       <Stack.Screen name="WorkerProfile" component={WorkerProfileScreen} />
       <Stack.Screen name="WorkerWelfare" component={WorkerWelfareScreen} />
+      <Stack.Screen name="WorkerLocation" component={WorkerLocationScreen} />
     </Stack.Navigator>
   );
 }
@@ -460,7 +462,7 @@ export const RootNavigator: React.FC = () => {
         {session.role === 'worker' && (
           <ErrorBoundary fallbackTitle="Worker Section">
             <WorkerStackNavigator />
-            <WorkerAIAssistantWidget />
+            <WorkerAIAssistantWidget workerId={session?.user?.id} />
           </ErrorBoundary>
         )}
         {session.role === 'admin' && (

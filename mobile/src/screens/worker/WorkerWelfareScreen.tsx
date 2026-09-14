@@ -23,6 +23,7 @@ import type { Welfare, Worker } from '../../types';
 import { useTranslation } from 'react-i18next';
 import { FadeInView, AnimatedNumber, ScalePressable } from '../../animations';
 import { useAppBackHandler } from '../../hooks/useAppBackHandler';
+import { useRole } from '../../context/RoleContext';
 
 interface PassbookTransaction {
   id: string;
@@ -74,7 +75,11 @@ const RECENT_LEDGER: PassbookTransaction[] = [
 ];
 
 export const WorkerWelfareScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const { handleBack } = useAppBackHandler({ homeRouteName: 'WorkerHome', isHome: false });
+  const { role } = useRole();
+  const { handleBack } = useAppBackHandler({
+    homeRouteName: role === 'worker' ? 'WorkerHome' : 'CustomerTabs',
+    isHome: false,
+  });
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const typography = makeTypography(colors);
@@ -166,7 +171,9 @@ export const WorkerWelfareScreen: React.FC<{ navigation?: any }> = ({ navigation
           <View style={styles.statusPillBar}>
             <View style={styles.statusDot} />
             <Text style={styles.statusPillText} numberOfLines={1} ellipsizeMode="tail">
-              WRK-JPR-0101 · Active Member · Co-op Act §16
+              {role === 'customer'
+                ? 'COOP-PATRON-8842 · Citizen Member · Co-op Act §16'
+                : 'WRK-JPR-0101 · Active Member · Co-op Act §16'}
             </Text>
           </View>
         </FadeInView>

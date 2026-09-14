@@ -1,37 +1,35 @@
-// mobile/src/components/common/CompletionQRModal.tsx
 // ==============================================================================
-// CUSTOMER COMPLETION QR MODAL (CO-OP DUAL-KEY VERIFICATION)
-// Uncluttered, elegant modal displaying the customer's single-use completion QR
-// and 4-digit fallback PIN for worker scan sign-off.
+// WORKER PAYMENT UPI QR MODAL — IN-PERSON ON-SITE PAYMENT COLLECTION
+// Displays cooperative UPI QR code for the customer to scan on the spot.
 // ==============================================================================
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
-  Modal,
   StyleSheet,
+  Modal,
   TouchableOpacity,
   Pressable,
 } from 'react-native';
 import Svg, { Rect, G } from 'react-native-svg';
-import { ShieldCheck, X, CheckCircle2 } from 'lucide-react-native';
+import { ShieldCheck, X, Check, QrCode } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import type { Booking } from '../../types';
 
-interface CompletionQRModalProps {
+interface WorkerPaymentQRModalProps {
   visible: boolean;
   booking: Booking | null;
+  amount: number;
+  workerName: string;
   onClose: () => void;
-  onVerifyAndPay?: () => void;
+  onConfirmCash?: () => void;
 }
 
-// Generate a deterministic 21x21 QR pattern based on booking code and secret code
 function generateQRMatrix(seed: string): boolean[][] {
   const size = 21;
   const matrix: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
 
-  // Helper to place 7x7 Finder Pattern
   const placeFinder = (startX: number, startY: number) => {
     for (let r = 0; r < 7; r++) {
       for (let c = 0; c < 7; c++) {
@@ -47,18 +45,15 @@ function generateQRMatrix(seed: string): boolean[][] {
     }
   };
 
-  // Top-left, top-right, bottom-left finder patterns
   placeFinder(0, 0);
   placeFinder(size - 7, 0);
   placeFinder(0, size - 7);
 
-  // Timing patterns
   for (let i = 8; i < size - 8; i++) {
     matrix[6][i] = i % 2 === 0;
     matrix[i][6] = i % 2 === 0;
   }
 
-  // Hash-based data filler
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
     hash = (hash << 5) - hash + seed.charCodeAt(i);
@@ -68,10 +63,9 @@ function generateQRMatrix(seed: string): boolean[][] {
   let bitIdx = 0;
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
-      // Skip finder zones
-      const inTL = r < 9 && c < 9;
-      const inTR = r < 9 && c >= size - 8;
-      const inBL = r >= size - 8 && c < 9;
+      const inTL = r < 8 && c < 8;
+      const inTR = r < 8 && c >= size - 8;
+      const inBL = r >= size - 8 && c < 8;
       const inCenter = r >= 8 && r <= 12 && c >= 8 && c <= 12;
 
       if (!inTL && !inTR && !inBL && !inCenter && r !== 6 && c !== 6) {
@@ -85,29 +79,23 @@ function generateQRMatrix(seed: string): boolean[][] {
   return matrix;
 }
 
-export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
+export const WorkerPaymentQRModal: React.FC<WorkerPaymentQRModalProps> = ({
   visible,
   booking,
+  amount,
+  workerName,
   onClose,
-  onVerifyAndPay,
+  onConfirmCash,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
 
-  const verificationCode = booking?.completion_code || '8492';
+  const upiId = 'sahakari.coop@npci';
   const bookingCode = booking?.booking_code || 'BK-2026';
-  const workerName =
-    booking?.worker?.profile?.full_name || (booking?.worker as any)?.name || 'Service Professional';
 
   const matrix = useMemo(() => {
-    return generateQRMatrix(`${bookingCode}-${verificationCode}`);
-  }, [bookingCode, verificationCode]);
-
-  useEffect(() => {
-    if (visible && booking && booking.status === 'completed') {
-      onClose();
-    }
-  }, [visible, booking?.status, onClose]);
+    return generateQRMatrix(`upi://pay?pa=${upiId}&pn=${encodeURIComponent(workerName)}&am=${amount}&tr=${bookingCode}`);
+  }, [upiId, workerName, amount, bookingCode]);
 
   if (!visible || !booking) return null;
 
@@ -121,16 +109,20 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.titleWrap}>
-              <ShieldCheck size={18} color="#059669" />
-              <Text style={styles.title}>Service Completion Pass</Text>
+              <QrCode size={18} color={colors.primary} />
+              <Text style={styles.title}>Customer Payment QR</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
               <X size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.subtitle}>
-            Show this QR to {workerName} to verify work and authorize completion.
+            Ask customer to scan with any UPI app (GPay, PhonePe, Paytm, BHIM)
           </Text>
 
           {/* QR Code Canvas */}
@@ -155,54 +147,38 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
               </G>
             </Svg>
 
-            {/* Center CO-OP Shield Emblem */}
+            {/* Center CO-OP Emblem */}
             <View style={styles.centerBadge}>
               <ShieldCheck size={18} color="#059669" />
             </View>
           </View>
 
-          {/* 4-Digit Manual PIN Fallback */}
-          <View style={styles.codeContainer}>
-            <Text style={styles.codeLabel}>OR SHARE 4-DIGIT PIN</Text>
-            <View style={styles.pinBoxes}>
-              {verificationCode.split('').map((digit, i) => (
-                <View key={i} style={styles.pinBox}>
-                  <Text style={styles.pinDigit}>{digit}</Text>
-                </View>
-              ))}
-            </View>
+          {/* Amount and UPI Tag */}
+          <View style={styles.amountBox}>
+            <Text style={styles.amountLabel}>PAYMENT DUE FOR {bookingCode}</Text>
+            <Text style={styles.amountValue}>₹{amount.toFixed(2)}</Text>
+            <Text style={styles.upiSubText}>Cooperative VPA: {upiId}</Text>
           </View>
 
-          {/* Booking Reference Pill */}
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>{bookingCode}</Text>
-            <Text style={styles.metaDot}>•</Text>
-            <Text style={styles.metaText}>₹{booking.final_amount || booking.estimated_amount}</Text>
-            <Text style={styles.metaDot}>•</Text>
-            <Text style={styles.metaSuccess}>100% Secure</Text>
-          </View>
-
-          {onVerifyAndPay && (
-            <TouchableOpacity
-              style={styles.verifyAndPayBtn}
-              onPress={() => {
-                onClose();
-                onVerifyAndPay();
-              }}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={`Verify Work Done & Pay Now (₹${booking.final_amount || booking.estimated_amount})`}
-            >
-              <CheckCircle2 size={16} color="#ffffff" />
-              <Text style={styles.verifyAndPayBtnText}>
-                Verify Work Done & Pay (₹{booking.final_amount || booking.estimated_amount}) →
-              </Text>
+          {/* Bottom Action Buttons */}
+          <View style={styles.buttonRow}>
+            {onConfirmCash && (
+              <TouchableOpacity
+                style={styles.cashConfirmBtn}
+                onPress={() => {
+                  onClose();
+                  onConfirmCash();
+                }}
+                activeOpacity={0.85}
+              >
+                <Check size={15} color="#ffffff" />
+                <Text style={styles.cashConfirmBtnText}>Customer Paid Cash</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.closeActionBtn} onPress={onClose} activeOpacity={0.8}>
+              <Text style={styles.closeActionBtnText}>Close QR</Text>
             </TouchableOpacity>
-          )}
-
-          <TouchableOpacity style={styles.doneBtn} onPress={onClose} activeOpacity={0.8}>
-            <Text style={styles.doneBtnText}>Done / Close</Text>
-          </TouchableOpacity>
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -247,7 +223,7 @@ const createStyles = (colors: any, isDark: boolean) =>
     },
     title: {
       fontSize: 15,
-      fontWeight: '700',
+      fontWeight: '800',
       color: colors.textPrimary,
     },
     closeBtn: {
@@ -264,113 +240,82 @@ const createStyles = (colors: any, isDark: boolean) =>
       padding: 12,
       backgroundColor: '#ffffff',
       borderRadius: 16,
-      borderWidth: 1,
-      borderColor: '#e2e8f0',
       position: 'relative',
-      alignItems: 'center',
       justifyContent: 'center',
+      alignItems: 'center',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 10,
+      elevation: 4,
     },
     centerBadge: {
       position: 'absolute',
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 34,
+      height: 34,
+      borderRadius: 8,
       backgroundColor: '#ffffff',
-      borderWidth: 1.5,
-      borderColor: '#059669',
-      alignItems: 'center',
       justifyContent: 'center',
-    },
-    codeContainer: {
       alignItems: 'center',
-      marginTop: 16,
-      marginBottom: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 3,
     },
-    codeLabel: {
+    amountBox: {
+      alignItems: 'center',
+      marginTop: 14,
+      marginBottom: 16,
+    },
+    amountLabel: {
       fontSize: 10,
       fontWeight: '700',
       color: colors.textMuted,
-      letterSpacing: 0.8,
-      marginBottom: 8,
+      letterSpacing: 0.5,
+      marginBottom: 2,
     },
-    pinBoxes: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    pinBox: {
-      width: 38,
-      height: 42,
-      borderRadius: 8,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
-      borderWidth: 1.5,
-      borderColor: '#059669',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    pinDigit: {
-      fontSize: 20,
-      fontWeight: '800',
+    amountValue: {
+      fontSize: 22,
+      fontWeight: '900',
       color: colors.textPrimary,
-      letterSpacing: 1,
     },
-    metaRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 16,
-    },
-    metaText: {
+    upiSubText: {
       fontSize: 11,
-      color: colors.textSecondary,
-      fontWeight: '500',
-    },
-    metaDot: {
-      fontSize: 11,
-      color: colors.textMuted,
-    },
-    metaSuccess: {
-      fontSize: 11,
-      color: '#059669',
       fontWeight: '600',
+      color: colors.textSecondary,
+      marginTop: 2,
     },
-    verifyAndPayBtn: {
+    buttonRow: {
+      width: '100%',
+      gap: 8,
+    },
+    cashConfirmBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8,
+      gap: 6,
       backgroundColor: '#059669',
       paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 12,
-      width: '100%',
-      marginBottom: 10,
-      shadowColor: '#059669',
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.25,
-      shadowRadius: 6,
-      elevation: 3,
+      borderRadius: 10,
     },
-    verifyAndPayBtnText: {
+    cashConfirmBtnText: {
       fontSize: 13,
       fontWeight: '800',
       color: '#ffffff',
     },
-    doneBtn: {
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
+    closeActionBtn: {
       paddingVertical: 10,
-      paddingHorizontal: 24,
-      borderRadius: 10,
-      width: '100%',
       alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#f8fafc',
     },
-    doneBtnText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.textPrimary,
+    closeActionBtnText: {
+      fontSize: 12.5,
+      fontWeight: '700',
+      color: colors.textSecondary,
     },
   });

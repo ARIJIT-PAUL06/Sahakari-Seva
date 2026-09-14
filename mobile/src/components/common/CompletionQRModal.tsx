@@ -5,7 +5,7 @@
 // and 4-digit fallback PIN for worker scan sign-off.
 // ==============================================================================
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
   Pressable,
 } from 'react-native';
 import Svg, { Rect, G } from 'react-native-svg';
-import { ShieldCheck, X } from 'lucide-react-native';
+import { ShieldCheck, X, CheckCircle2 } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import type { Booking } from '../../types';
 
@@ -23,6 +23,7 @@ interface CompletionQRModalProps {
   visible: boolean;
   booking: Booking | null;
   onClose: () => void;
+  onVerifyAndPay?: () => void;
 }
 
 // Generate a deterministic 21x21 QR pattern based on booking code and secret code
@@ -88,6 +89,7 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
   visible,
   booking,
   onClose,
+  onVerifyAndPay,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
@@ -100,6 +102,12 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
   const matrix = useMemo(() => {
     return generateQRMatrix(`${bookingCode}-${verificationCode}`);
   }, [bookingCode, verificationCode]);
+
+  useEffect(() => {
+    if (visible && booking && booking.status === 'completed') {
+      onClose();
+    }
+  }, [visible, booking?.status, onClose]);
 
   if (!visible || !booking) return null;
 
@@ -173,6 +181,24 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
             <Text style={styles.metaDot}>•</Text>
             <Text style={styles.metaSuccess}>100% Secure</Text>
           </View>
+
+          {onVerifyAndPay && (
+            <TouchableOpacity
+              style={styles.verifyAndPayBtn}
+              onPress={() => {
+                onClose();
+                onVerifyAndPay();
+              }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`Verify Work Done & Pay Now (₹${booking.final_amount || booking.estimated_amount})`}
+            >
+              <CheckCircle2 size={16} color="#ffffff" />
+              <Text style={styles.verifyAndPayBtnText}>
+                Verify Work Done & Pay (₹{booking.final_amount || booking.estimated_amount}) →
+              </Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.doneBtn} onPress={onClose} activeOpacity={0.8}>
             <Text style={styles.doneBtnText}>Done / Close</Text>
@@ -311,6 +337,28 @@ const createStyles = (colors: any, isDark: boolean) =>
       fontSize: 11,
       color: '#059669',
       fontWeight: '600',
+    },
+    verifyAndPayBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: '#059669',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      width: '100%',
+      marginBottom: 10,
+      shadowColor: '#059669',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.25,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    verifyAndPayBtnText: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: '#ffffff',
     },
     doneBtn: {
       backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',

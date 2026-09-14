@@ -1,8 +1,4 @@
-// ==============================================================================
-// CUSTOMER BOOKINGS SCREEN — BOOKING LIFECYCLE & STATUS TRACKING
-// ==============================================================================
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,10 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  DeviceEventEmitter,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Header } from '../../components/common/Header';
 import { ApiClient } from '../../services/apiClient';
 import { Booking } from '../../types';
@@ -28,7 +25,7 @@ export const CustomerBookingsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, isDark);
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +56,19 @@ export const CustomerBookingsScreen: React.FC = () => {
 
   useEffect(() => {
     loadBookings();
+    const sub = DeviceEventEmitter.addListener('app_booking_updated', () => {
+      loadBookings();
+    });
+    return () => {
+      sub.remove();
+    };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadBookings();
+    }, [])
+  );
 
   return (
     <View style={styles.container}>
@@ -141,6 +150,16 @@ export const CustomerBookingsScreen: React.FC = () => {
                       </View>
                     )}
 
+                    {/* Payment Due Banner if Completed */}
+                    {booking.status === 'completed' && booking.payment_status !== 'paid' && (
+                      <View style={styles.paymentDuePill}>
+                        <Zap size={11} color="#b45309" />
+                        <Text style={styles.paymentDuePillText}>
+                          Service Completed • Payment of ₹{booking.final_amount} Due
+                        </Text>
+                      </View>
+                    )}
+
                     {/* Action Needed Badge for Supplemental Bill */}
                     {booking.supplemental_bill?.status === 'pending_approval' && (
                       <View style={styles.actionNeededPill}>
@@ -160,10 +179,37 @@ export const CustomerBookingsScreen: React.FC = () => {
                     )}
 
                     <View style={styles.cardFooter}>
-                      <Text style={styles.amountText}>{t('bookingsList.amount')}: ₹{booking.final_amount}</Text>
-                      <Text style={styles.paymentStatusText}>
-                        {booking.payment_status === 'paid' ? t('bookingsList.paid') : t('bookingsList.payment_on_completion')}
-                      </Text>
+                      <View style={styles.cardFooterLeft}>
+                        <Text style={styles.amountText}>
+                          {t('bookingsList.amount')}: ₹{booking.final_amount}
+                        </Text>
+                        {booking.status === 'completed' && booking.payment_status !== 'paid' ? (
+                          <Text style={styles.paymentDueStatusText}>Payment Due Now</Text>
+                        ) : booking.payment_status === 'paid' ? (
+                          <Text style={styles.paymentPaidStatusText}>Payment Settled ✓</Text>
+                        ) : (
+                          <Text style={styles.paymentStatusText}>
+                            {t('bookingsList.payment_on_completion')}
+                          </Text>
+                        )}
+                      </View>
+
+                      {booking.status === 'completed' && booking.payment_status !== 'paid' ? (
+                        <TouchableOpacity
+                          style={styles.cardPayNowBtn}
+                          onPress={() =>
+                            navigation.navigate('BookingDetail', {
+                              bookingId: booking.id,
+                              autoOpenCheckout: true,
+                            })
+                          }
+                          activeOpacity={0.85}
+                        >
+                          <Text style={styles.cardPayNowBtnText}>Pay ₹{booking.final_amount}</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <Text style={styles.cardViewDetailsText}>Details →</Text>
+                      )}
                     </View>
                   </View>
                 </ScalePressable>
@@ -176,7 +222,7 @@ export const CustomerBookingsScreen: React.FC = () => {
   );
 };
 
-const createStyles = (colors: Palette) => StyleSheet.create({
+const createStyles = (colors: Palette, isDark: boolean = false) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background
@@ -344,5 +390,58 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '800',
     color: '#e11d48',
+  },
+  paymentDuePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#FFFBEB',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    marginTop: 8,
+    borderWidth: 1.2,
+    borderColor: isDark ? 'rgba(245, 158, 11, 0.4)' : '#FDE68A',
+  },
+  paymentDuePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: isDark ? '#FBBF24' : '#B45309',
+  },
+  cardFooterLeft: {
+    flex: 1,
+  },
+  paymentDueStatusText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: isDark ? '#FBBF24' : '#D97706',
+    marginTop: 1,
+  },
+  paymentPaidStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#10B981',
+    marginTop: 1,
+  },
+  cardPayNowBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  cardPayNowBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  cardViewDetailsText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });

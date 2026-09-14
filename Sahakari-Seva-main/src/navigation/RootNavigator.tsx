@@ -462,7 +462,7 @@ export const RootNavigator: React.FC = () => {
         {session.role === 'worker' && (
           <ErrorBoundary fallbackTitle="Worker Section">
             <WorkerStackNavigator />
-            <WorkerAIAssistantWidget />
+            <WorkerAIAssistantWidget workerId={session?.user?.id} />
           </ErrorBoundary>
         )}
         {session.role === 'admin' && (

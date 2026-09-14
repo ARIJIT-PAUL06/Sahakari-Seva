@@ -93,6 +93,7 @@ export const WorkerJobsScreen: React.FC<{ navigation?: any }> = ({ navigation })
     const isAccepted = job.status === 'accepted';
     const isInProgress = job.status === 'in_progress';
     const isCompleted = job.status === 'completed';
+    const isPaymentPending = isCompleted && job.payment_status !== 'paid';
     const isCollision = isPending && scheduleConflict.isExactCollision;
     const isBuffer = isPending && !scheduleConflict.isExactCollision && scheduleConflict.isBufferCollision && !job.is_emergency;
 
@@ -166,7 +167,7 @@ export const WorkerJobsScreen: React.FC<{ navigation?: any }> = ({ navigation })
                   isPending && styles.statusBadgePending,
                   isAccepted && styles.statusBadgeAccepted,
                   isInProgress && styles.statusBadgeInProgress,
-                  isCompleted && styles.statusBadgeCompleted,
+                  isCompleted && (isPaymentPending ? styles.statusBadgePaymentDue : styles.statusBadgeCompleted),
                   job.status === 'rejected' && styles.statusBadgeRejected,
                   isViolation && styles.statusBadgeViolation,
                 ]}
@@ -177,7 +178,7 @@ export const WorkerJobsScreen: React.FC<{ navigation?: any }> = ({ navigation })
                     isPending && styles.statusTextPending,
                     isAccepted && styles.statusTextAccepted,
                     isInProgress && styles.statusTextInProgress,
-                    isCompleted && styles.statusTextCompleted,
+                    isCompleted && (isPaymentPending ? styles.statusTextPaymentDue : styles.statusTextCompleted),
                     job.status === 'rejected' && styles.statusTextRejected,
                     isViolation && styles.statusTextViolation,
                   ]}
@@ -191,7 +192,7 @@ export const WorkerJobsScreen: React.FC<{ navigation?: any }> = ({ navigation })
                     : isInProgress
                     ? 'IN PROGRESS'
                     : isCompleted
-                    ? 'COMPLETED'
+                    ? (isPaymentPending ? 'PAYMENT DUE' : 'COMPLETED')
                     : job.status.toUpperCase()}
                 </Text>
               </View>
@@ -225,6 +226,7 @@ export const WorkerJobsScreen: React.FC<{ navigation?: any }> = ({ navigation })
                 isPending && { color: isDark ? '#fbbf24' : '#b45309' },
                 isAccepted && { color: '#059669' },
                 isInProgress && { color: '#2563eb' },
+                isPaymentPending && { color: '#d97706', fontWeight: '700' },
               ]}
             >
               {isViolation
@@ -235,6 +237,8 @@ export const WorkerJobsScreen: React.FC<{ navigation?: any }> = ({ navigation })
                 ? 'Manage Confirmed Job →'
                 : isPending
                 ? 'Review & Manage Job Request →'
+                : isPaymentPending
+                ? 'Collect Payment / Show QR Code →'
                 : 'View Job Details & Wages →'}
             </Text>
             <ChevronRight
@@ -248,6 +252,8 @@ export const WorkerJobsScreen: React.FC<{ navigation?: any }> = ({ navigation })
                   ? '#059669'
                   : isInProgress
                   ? '#2563eb'
+                  : isPaymentPending
+                  ? '#d97706'
                   : colors.primary
               }
             />
@@ -961,6 +967,11 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     statusBadgeCompleted: {
       backgroundColor: isDark ? 'rgba(100, 116, 139, 0.1)' : '#f1f5f9',
     },
+    statusBadgePaymentDue: {
+      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.18)' : '#fef3c7',
+      borderWidth: 0.5,
+      borderColor: '#f59e0b',
+    },
     statusBadgeRejected: {
       backgroundColor: isDark ? 'rgba(239, 68, 68, 0.1)' : '#fee2e2',
     },
@@ -983,6 +994,10 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     },
     statusTextCompleted: {
       color: '#64748b',
+    },
+    statusTextPaymentDue: {
+      color: '#d97706',
+      fontWeight: '700',
     },
     statusTextRejected: {
       color: '#ef4444',

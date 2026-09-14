@@ -377,7 +377,15 @@ export class ApiClient {
       if (workerId) url += `?worker_id=${workerId}`;
       return await this.request<Booking[]>(url);
     } catch {
-      let list = MOCK_BOOKINGS;
+      let list = await Promise.all(
+        MOCK_BOOKINGS.map(async b => {
+          const stored = await this.restoreBooking(b.id);
+          if (stored) {
+            Object.assign(b, stored);
+          }
+          return b;
+        })
+      );
       if (customerId) list = list.filter(b => b.customer_id === customerId);
       if (workerId) list = list.filter(b => b.worker_id === workerId);
       return [...list].sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
@@ -713,6 +721,7 @@ export class ApiClient {
     targetBooking.completion_code = code;
     targetBooking.completion_qr_payload = qrPayload;
     targetBooking.updated_at = new Date().toISOString();
+    await this.persistBooking(targetBooking);
 
     const workerObj = MOCK_WORKERS.find(
       w => w.id === (targetBooking.worker_id || (targetBooking.worker as any)?.id)
@@ -766,14 +775,17 @@ export class ApiClient {
       // not json
     }
 
-    const isSimulated = trimmed === 'SIMULATED_QR_SCAN';
+    const isDirectOrSimulated =
+      trimmed === 'SIMULATED_QR_SCAN' ||
+      trimmed === 'CUSTOMER_DIRECT_APPROVAL' ||
+      trimmed === 'CUSTOMER_VERIFIED';
     const isMatch =
       targetBooking.completion_code &&
       (extractedCode === targetBooking.completion_code ||
         trimmed.includes(targetBooking.completion_code));
 
     // In demo mode, if code hasn't been generated yet or matches
-    if (!isSimulated && !isMatch && targetBooking.completion_code) {
+    if (!isDirectOrSimulated && !isMatch && targetBooking.completion_code) {
       throw new Error(
         'Invalid Verification Code. Please ask customer to show their screen with the Completion QR.'
       );
@@ -783,8 +795,11 @@ export class ApiClient {
     targetBooking.completion_requested = false;
     targetBooking.completion_code = undefined;
     targetBooking.completion_qr_payload = undefined;
-    targetBooking.payment_status = 'paid';
+    // Under Sahakari cooperative bylaws (Pay on Service Completion):
+    // Verifying service completion confirms physical work is done, unlocking payment by customer.
+    targetBooking.payment_status = 'pending';
     targetBooking.updated_at = new Date().toISOString();
+    await this.persistBooking(targetBooking);
 
     const assignedWorkerId =
       targetBooking.worker_id ||
@@ -807,15 +822,46 @@ export class ApiClient {
       id: `notif-c-done-${Date.now()}`,
       user_id: targetBooking.customer_id || 'p0000000-0000-0000-0000-000000000002',
       type: 'booking',
-      title: 'Service Completed! ✓',
-      message: `Service ${targetBooking.booking_code} was successfully verified and completed. Thank you!`,
+      title: 'Service Completed • Payment Due ✓',
+      message: `Work on ${targetBooking.booking_code} was completed by ${targetBooking.worker?.profile?.full_name || 'the professional'}. Please complete payment of ₹${targetBooking.final_amount || targetBooking.estimated_amount}.`,
       read: false,
       action_url: `/bookings/${targetBooking.id}`,
       created_at: new Date().toISOString(),
     });
 
+    MOCK_NOTIFICATIONS.worker.unshift({
+      id: `notif-w-done-${Date.now()}`,
+      user_id: targetBooking.worker_id || 'w0000000-0000-0000-0000-000000000001',
+      type: 'booking',
+      title: 'Sign-Off Verified • Awaiting Customer Payment ⏳',
+      message: `Customer verified completion of ${targetBooking.booking_code}. Customer has been prompted to pay ₹${targetBooking.final_amount || targetBooking.estimated_amount}.`,
+      read: false,
+      action_url: `/jobs/${targetBooking.id}`,
+      created_at: new Date().toISOString(),
+    });
+
     DeviceEventEmitter.emit('app_booking_updated');
     return { ...targetBooking };
+  }
+
+  public static async confirmCashPayment(
+    bookingId: string,
+    amount?: number
+  ): Promise<{ payment: Payment; invoice: Invoice }> {
+    const booking = await this.getBookingById(bookingId);
+    if (!booking) throw new Error('Booking not found');
+    const finalAmt =
+      amount !== undefined
+        ? amount
+        : Number(booking.final_amount) || Number(booking.estimated_amount) || 0;
+    return await this.processPayment({
+      booking_id: booking.id,
+      customer_id: booking.customer_id,
+      worker_id: booking.worker_id,
+      amount: finalAmt,
+      payment_method: 'Cash to Professional',
+      transaction_reference: `CASH-${Date.now().toString().slice(-8)}`,
+    });
   }
 
   public static async rescheduleBooking(

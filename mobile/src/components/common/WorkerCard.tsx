@@ -72,9 +72,9 @@ export const WorkerCard: React.FC<WorkerCardProps> = ({ worker, onPress, onBook,
               </View>
             </View>
 
-            {/* Glowing Amber Rating Badge */}
+              {/* Glowing Amber Rating Badge */}
             <View style={styles.ratingBadge}>
-              <Star size={13} color="#f59e0b" fill="#f59e0b" />
+              <Star size={12} color="#F39A24" fill="#F39A24" />
               <Text style={styles.ratingText}>{worker.rating}</Text>
             </View>
           </View>
@@ -93,9 +93,9 @@ export const WorkerCard: React.FC<WorkerCardProps> = ({ worker, onPress, onBook,
                   {t('common.km_away', { km: worker.distance_km })}
                 </Text>
               </View>
-              {/* Energetic Emerald Match Score Chip */}
+              {/* Soft Mint Match Score Chip */}
               <View style={styles.matchScoreBadge}>
-                <Sparkles size={11} color="#059669" />
+                <Sparkles size={11} color="#087F5B" />
                 <Text style={styles.scoreText} numberOfLines={1}>
                   {t('common.match', { score: worker.matchScore })}
                 </Text>
@@ -103,17 +103,14 @@ export const WorkerCard: React.FC<WorkerCardProps> = ({ worker, onPress, onBook,
             </View>
 
             <ScalePressable onPress={onBook} scaleTo={0.93} style={styles.bookBtnWrap}>
-              <LinearGradient
-                colors={isEmergencyActive ? ['#e11d48', '#be123c'] : ['#4f46e5', '#4338ca']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+              <View
                 style={[styles.bookBtn, isEmergencyActive && styles.bookBtnEmergency]}
               >
                 <Zap size={11} color="#ffffff" />
                 <Text style={styles.bookBtnText} numberOfLines={1}>
-                  {isEmergencyActive ? `Emergency ₹${emergencyRate}` : t('common.book', { rate: worker.hourly_rate })}
+                  {isEmergencyActive ? `Emergency ₹${emergencyRate} →` : `⚡ Book ₹${worker.hourly_rate} →`}
                 </Text>
-              </LinearGradient>
+              </View>
             </ScalePressable>
           </View>
         </View>
@@ -126,15 +123,15 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: 18,
-    padding: 14,
+    padding: 15,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#e2e8f0',
-    shadowColor: isDark ? '#000000' : '#1e293b',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: isDark ? 0.35 : 0.07,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : '#E3E8E5',
+    shadowColor: '#142238',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: isDark ? 0.35 : 0.04,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   headerRow: {
     flexDirection: 'row',
@@ -150,7 +147,7 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     gap: 6,
   },
   workerName: {
-    fontSize: 15,
+    fontSize: 15.5,
     fontWeight: '700',
     color: colors.textPrimary,
   },
@@ -162,9 +159,9 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2.5,
     borderRadius: 6,
-    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : '#fef3c7',
+    backgroundColor: isDark ? 'rgba(243, 154, 36, 0.16)' : '#FFF4DD',
     borderWidth: 1,
-    borderColor: isDark ? 'rgba(245, 158, 11, 0.4)' : '#fde68a',
+    borderColor: isDark ? 'rgba(243, 154, 36, 0.4)' : '#ffe5b4',
     marginTop: 4,
     marginBottom: 2,
   },
@@ -172,13 +169,13 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#F39A24',
   },
   activeJobText: {
     fontSize: 10.5,
-    fontWeight: '800',
-    color: isDark ? '#fbbf24' : '#b45309',
-    letterSpacing: 0.3,
+    fontWeight: '700',
+    color: isDark ? '#fbbf24' : '#B86A00',
+    letterSpacing: 0.2,
   },
   tradeChip: {
     flexDirection: 'row',
@@ -197,29 +194,24 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     borderRadius: 3,
   },
   tradeText: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '700',
   },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.16)' : '#fef3c7',
+    backgroundColor: isDark ? 'rgba(243, 154, 36, 0.16)' : '#FFF4DD',
     borderWidth: 1,
-    borderColor: isDark ? '#b45309' : '#fde68a',
+    borderColor: isDark ? '#B86A00' : '#ffe5b4',
     paddingHorizontal: 8,
     paddingVertical: 3.5,
     borderRadius: 8,
     gap: 4,
-    shadowColor: '#f59e0b',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 1,
   },
   ratingText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: isDark ? '#fde68a' : '#b45309',
+    fontWeight: '700',
+    color: isDark ? '#fde68a' : '#B86A00',
   },
   locationRow: {
     flexDirection: 'row',
@@ -239,7 +231,7 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
+    borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E3E8E5',
   },
   metricsBadge: {
     flexDirection: 'row',
@@ -263,9 +255,9 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: isDark ? 'rgba(5, 150, 105, 0.18)' : '#ecfdf5',
+    backgroundColor: isDark ? 'rgba(8, 127, 91, 0.18)' : '#E8F7F1',
     borderWidth: 1,
-    borderColor: isDark ? '#065f46' : '#a7f3d0',
+    borderColor: isDark ? '#075C43' : '#c2edd8',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
@@ -273,8 +265,8 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   },
   scoreText: {
     fontSize: 10.5,
-    fontWeight: '800',
-    color: isDark ? '#6ee7b7' : '#047857',
+    fontWeight: '700',
+    color: isDark ? '#E8F7F1' : '#087F5B',
   },
   bookBtnWrap: {
     flexShrink: 0,
@@ -284,10 +276,11 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
+    backgroundColor: '#087F5B',
+    paddingHorizontal: 12,
+    paddingVertical: 7.5,
     borderRadius: 9,
-    shadowColor: colors.primary,
+    shadowColor: '#087F5B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -295,20 +288,20 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   },
   bookBtnText: {
     fontSize: 11.5,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#ffffff',
   },
   cardEmergency: {
-    borderColor: '#f43f5e',
+    borderColor: '#D92D4F',
     borderWidth: 1.4,
   },
   emergencyOnCallBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: isDark ? 'rgba(225, 29, 72, 0.15)' : '#ffe4e6',
+    backgroundColor: isDark ? 'rgba(217, 45, 79, 0.15)' : '#FDECEF',
     borderWidth: 1,
-    borderColor: isDark ? '#be123c' : '#fecdd3',
+    borderColor: isDark ? '#9F1239' : 'rgba(217, 45, 79, 0.25)',
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
@@ -318,11 +311,12 @@ const createStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   },
   emergencyOnCallText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#e11d48',
+    fontWeight: '700',
+    color: '#D92D4F',
   },
   bookBtnEmergency: {
-    shadowColor: '#e11d48',
+    backgroundColor: '#D92D4F',
+    shadowColor: '#D92D4F',
   },
 });
 

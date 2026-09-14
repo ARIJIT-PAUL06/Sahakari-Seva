@@ -35,11 +35,16 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
   const generateLeafletHtml = () => {
     const workerPins = workers
       .map(
-        (w, i) => `
+        (w, i) => {
+          const isSelected = activeWorker?.workerId === w.workerId;
+          const pinBg = isSelected ? '#075C43' : i % 2 === 0 ? '#087F5B' : '#F39A24';
+          const pinBorder = isSelected ? '3px solid #E8F7F1' : '2px solid #FFFFFF';
+          const pinScale = isSelected ? 'transform:scale(1.14);' : '';
+          return `
         L.marker([${w.latitude}, ${w.longitude}], {
           icon: L.divIcon({
             className: 'custom-worker-pin',
-            html: '<div style="background:${colors.primary};color:${colors.textInverse};border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,0.3);border:2px solid #fff;font-weight:bold;font-size:12px;">★ ${w.rating}</div>',
+            html: '<div style="background:${pinBg};color:#ffffff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,0.25);border:${pinBorder};font-weight:bold;font-size:12px;${pinScale}">★ ${w.rating}</div>',
             iconSize: [34, 34],
             iconAnchor: [17, 17]
           })
@@ -53,7 +58,8 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
             window.parent.postMessage({ type: 'SELECT_WORKER', workerId: '${w.workerId}' }, '*');
           }
         });
-      `
+      `;
+        }
       )
       .join('\n');
 
@@ -80,12 +86,12 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
               attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
 
-            // User GPS Location Marker (Blue Circle)
+            // User GPS Location Marker (Green Circle)
             var userIcon = L.divIcon({
               className: 'user-pin',
-              html: '<div style="background:${colors.info};width:20px;height:20px;border-radius:50%;border:3px solid #ffffff;box-shadow:0 0 10px rgba(37,99,235,0.6);"></div>',
-              iconSize: [20, 20],
-              iconAnchor: [10, 10]
+              html: '<div style="background:#087F5B;width:22px;height:22px;border-radius:50%;border:3px solid #ffffff;box-shadow:0 0 10px rgba(8,127,91,0.6);"></div>',
+              iconSize: [22, 22],
+              iconAnchor: [11, 11]
             });
             L.marker([${userLocation.latitude}, ${userLocation.longitude}], { icon: userIcon })
               .addTo(map)
@@ -94,9 +100,9 @@ export const MobileMapView: React.FC<MobileMapViewProps> = ({
 
             // Service Radius Circle (10 km)
             L.circle([${userLocation.latitude}, ${userLocation.longitude}], {
-              color: '${colors.success}',
-              fillColor: '${colors.success}',
-              fillOpacity: 0.12,
+              color: '#087F5B',
+              fillColor: '#087F5B',
+              fillOpacity: 0.10,
               radius: 10000
             }).addTo(map);
 
@@ -248,14 +254,16 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     position: 'absolute',
     top: 14,
     left: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.65)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
     elevation: 3
   },
   mapBadgeText: {
@@ -270,7 +278,7 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     padding: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 8
   },
@@ -296,9 +304,9 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#fef3c7',
+    backgroundColor: '#FFF4DD',
     borderWidth: 1,
-    borderColor: '#fde68a',
+    borderColor: '#FDE68A',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -310,18 +318,18 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#f59e0b',
+    backgroundColor: '#F39A24',
   },
   activeJobText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#b45309',
+    color: '#B86A00',
     letterSpacing: 0.3,
   },
   workerService: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
+    color: '#087F5B',
     marginTop: 2
   },
   workerArea: {
@@ -332,7 +340,7 @@ const createStyles = (colors: Palette) => StyleSheet.create({
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.secondaryLight,
+    backgroundColor: '#FFF4DD',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -341,7 +349,7 @@ const createStyles = (colors: Palette) => StyleSheet.create({
   ratingText: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.secondaryDark
+    color: '#B86A00'
   },
   metricsRow: {
     flexDirection: 'row',
@@ -380,7 +388,7 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#087F5B',
     paddingVertical: 13,
     borderRadius: 12,
     gap: 8
@@ -388,6 +396,6 @@ const createStyles = (colors: Palette) => StyleSheet.create({
   bookBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.textInverse
+    color: '#FFFFFF'
   }
 });

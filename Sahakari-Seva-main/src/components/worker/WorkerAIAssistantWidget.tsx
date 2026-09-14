@@ -27,6 +27,7 @@ import {
   Linking,
   DeviceEventEmitter,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import {
   Sparkles,
@@ -54,6 +55,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { rootNavigationRef } from '../../navigation/RootNavigator';
+import { ApiClient } from '../../services/apiClient';
 import {
   AIAssistantService,
   WorkerAssistantContext,
@@ -71,12 +73,14 @@ interface AssistantPartsPickerCardProps {
   card: AssistantActionCard;
   isDark: boolean;
   onSubmit: (items: ExtraTaskItem[], notes?: string) => Promise<void>;
+  onStateChange?: (state: { selectedItems: ExtraTaskItem[]; notes: string; submit: () => Promise<void> }) => void;
 }
 
 const AssistantPartsPickerCard: React.FC<AssistantPartsPickerCardProps> = ({
   card,
   isDark,
   onSubmit,
+  onStateChange,
 }) => {
   const suggestionsCatalog = card.tradeSuggestions || TRADE_SUGGESTIONS;
   const trades = card.availableTrades && card.availableTrades.length > 0
@@ -184,6 +188,16 @@ const AssistantPartsPickerCard: React.FC<AssistantPartsPickerCardProps> = ({
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange({
+        selectedItems,
+        notes,
+        submit: handleSubmit,
+      });
+    }
+  }, [selectedItems, notes, submitting, submitted]);
 
   return (
     <View style={[styles.partsCardContainer, isDark && styles.partsCardContainerDark]}>
@@ -354,37 +368,42 @@ const AssistantPartsPickerCard: React.FC<AssistantPartsPickerCardProps> = ({
                 onChangeText={setCustomTitle}
               />
 
-              <View style={styles.customRow}>
-                <TextInput
-                  style={[styles.customInput, { flex: 1, marginBottom: 0 }, isDark && styles.customInputDark]}
-                  placeholder="Cost ₹ (e.g. 250)"
-                  placeholderTextColor="#94a3b8"
-                  keyboardType="numeric"
-                  value={customCost}
-                  onChangeText={setCustomCost}
-                />
+              <TextInput
+                style={[styles.customInput, isDark && styles.customInputDark]}
+                placeholder="Cost ₹ (e.g. 250)"
+                placeholderTextColor="#94a3b8"
+                keyboardType="numeric"
+                value={customCost}
+                onChangeText={setCustomCost}
+              />
 
-                <View style={styles.typeToggleGroup}>
-                  {(['part', 'labor', 'repair'] as ExtraTaskType[]).map(t => (
-                    <TouchableOpacity
-                      key={t}
+              <View style={styles.typeSegmentedGroup}>
+                {([
+                  { type: 'part', label: '📦 Part' },
+                  { type: 'labor', label: '🔨 Labor' },
+                  { type: 'repair', label: '🔧 Repair' },
+                ] as const).map(({ type: t, label }) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[
+                      styles.typeSegmentedBtn,
+                      customType === t && styles.typeSegmentedBtnActive,
+                      isDark && customType !== t && styles.typeSegmentedBtnDark,
+                    ]}
+                    onPress={() => setCustomType(t as ExtraTaskType)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
                       style={[
-                        styles.typeToggleBtn,
-                        customType === t && styles.typeToggleBtnActive,
+                        styles.typeSegmentedBtnText,
+                        customType === t && styles.typeSegmentedBtnTextActive,
+                        isDark && customType !== t && { color: '#94a3b8' },
                       ]}
-                      onPress={() => setCustomType(t)}
                     >
-                      <Text
-                        style={[
-                          styles.typeToggleBtnText,
-                          customType === t && styles.typeToggleBtnTextActive,
-                        ]}
-                      >
-                        {t}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
 
               <TouchableOpacity
@@ -692,10 +711,12 @@ const AssistantJobListCard: React.FC<AssistantJobListCardProps> = ({
 
 export interface WorkerAIAssistantWidgetProps {
   showFloatingTrigger?: boolean;
+  workerId?: string;
 }
 
 export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = ({
   showFloatingTrigger = false,
+  workerId,
 }) => {
   const { colors, isDark } = useTheme();
 
@@ -716,6 +737,14 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
   // Pulse animation for floating trigger
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Active parts picker selection tracker for direct voice/text estimate submission
+  const activePartsPickerRef = useRef<{
+    bookingId: string;
+    selectedItems: ExtraTaskItem[];
+    notes: string;
+    submit: () => Promise<void>;
+  } | null>(null);
 
   useEffect(() => {
     Animated.loop(
@@ -747,7 +776,7 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
       subBooking.remove();
       subOpen.remove();
     };
-  }, []);
+  }, [workerId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -755,14 +784,17 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
     }
   }, [isOpen]);
 
-  const refreshContext = async () => {
+  const initializedRef = useRef(false);
+
+  const refreshContext = async (forceInit = false) => {
     try {
       setLoading(true);
-      const ctx = await AIAssistantService.getWorkerContext();
+      const ctx = await AIAssistantService.getWorkerContext(workerId);
       setContext(ctx);
 
-      // Initialize conversation if empty
-      if (messages.length === 0) {
+      // Initialize conversation only once on first open, or on explicit user refresh
+      if (!initializedRef.current || forceInit) {
+        initializedRef.current = true;
         initializeConversation(ctx);
       }
     } catch (err) {
@@ -777,76 +809,113 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
     const inProg = ctx.activeOnSiteJob;
     const accepted = ctx.nextCommittedJob;
     const pending = ctx.pendingJobs;
+    const awaitingPayment = ctx.awaitingPaymentJob;
+    const emergencyPending = pending.find(j => j.is_emergency);
 
     let greeting = 'Namaste! I am your Sahakari Assistant ⚡.\n';
     let card: AssistantActionCard | undefined;
 
-    const emergencyPending = pending.find(j => j.is_emergency);
+    // PRIORITY 1: Active on-site work ALWAYS takes precedence!
+    if (inProg) {
+      const wage = (Number(inProg.final_amount || inProg.estimated_amount || 0) * 0.85).toFixed(0);
+      const isEmerg = inProg.is_emergency;
+      const custName = inProg.customer?.full_name || 'Customer';
+      const custPhone = inProg.customer?.phone || '+919855044556';
 
-    if (emergencyPending) {
+      greeting += isEmerg
+        ? `🚨 EMERGENCY SERVICE ON-SITE! You are active on ${inProg.booking_code} (${custName}). Operational mode is locked to Emergency Service until completion. Expected wage: ₹${wage} (+25% bonus included).`
+        : `⚡ Active On-Site: ${inProg.booking_code} (${custName}). Operational mode is locked until completion. Expected direct wage: ₹${wage}. What would you like to do?`;
+
+      if (emergencyPending) {
+        greeting += `\n\n*(Note: 1 new SOS request ${emergencyPending.booking_code} queued in area)*`;
+      }
+
+      card = {
+        id: 'init-card-1',
+        type: 'action_buttons',
+        booking: inProg,
+        actions: [
+          { label: isEmerg ? `✓ Complete Emergency Job (₹${wage})` : `✓ Complete Job (₹${wage})`, command: 'complete job', variant: 'success' },
+          { label: '🔧 Add Extra Parts & Tasks', command: 'add diagnostic parts', variant: 'warning' },
+          { label: `📞 Call ${custName}`, command: `call_phone:${custPhone}`, variant: isEmerg ? 'warning' : 'neutral' },
+        ],
+      };
+    }
+    // PRIORITY 2: Emergency dispatch alert when not currently on-site
+    else if (emergencyPending) {
       const wage = (Number(emergencyPending.final_amount || emergencyPending.estimated_amount || 0) * 0.85).toFixed(0);
-      greeting += `🚨 URGENT SOS DISPATCH ALERT! You have an emergency booking request (${emergencyPending.booking_code}) waiting for immediate response (< 15-30 min arrival SLA)! Expected direct wage: ₹${wage} (includes +25% emergency wage bonus).`;
+      const custPhone = emergencyPending.customer?.phone || '+919855044556';
+      greeting += `🚨 URGENT SOS DISPATCH ALERT! You have an emergency booking request (${emergencyPending.booking_code}) waiting for immediate dispatch (< 15-30 min arrival SLA)! Expected direct wage: ₹${wage} (+25% bonus included).`;
       card = {
         id: 'init-card-emergency',
         type: 'action_buttons',
         booking: emergencyPending,
         actions: [
           { label: `🚨 Accept Emergency (${emergencyPending.booking_code})`, command: `accept job ${emergencyPending.booking_code}`, variant: 'danger' },
-          { label: '📞 Call Customer Instantly', command: 'customer contact', variant: 'warning' },
-          { label: '📋 View All Requests', command: 'all requests', variant: 'neutral' },
+          { label: '📞 Call Customer Instantly', command: `call_phone:${custPhone}`, variant: 'warning' },
+          { label: '📋 View Schedule', command: 'navigate_jobs', variant: 'neutral' },
         ],
       };
-    } else if (inProg) {
-      const wage = (Number(inProg.final_amount || inProg.estimated_amount || 0) * 0.85).toFixed(0);
-      const isEmerg = inProg.is_emergency;
-      greeting += isEmerg
-        ? `🚨 EMERGENCY SERVICE IN PROGRESS! You are on-site for emergency SOS job ${inProg.booking_code} (${inProg.customer?.full_name || 'Customer'}). Operational mode is locked to Emergency Service until completion. Expected wage: ₹${wage} (+25% bonus included).`
-        : `You are currently on-site for job ${inProg.booking_code} (${inProg.customer?.full_name || 'Customer'}). Operational mode is locked until completion. Expected wage: ₹${wage}. What would you like to do?`;
+    }
+    // PRIORITY 2.5: Completed job awaiting customer payment (After Pay)
+    else if (awaitingPayment) {
+      const amt = awaitingPayment.final_amount || awaitingPayment.estimated_amount || 0;
+      const wage = (Number(amt) * 0.85).toFixed(0);
+      const custName = awaitingPayment.customer?.full_name || 'Customer';
+      greeting += `💳 PAYMENT DUE! Job ${awaitingPayment.booking_code} for ${custName} is completed. Collect ₹${amt} from the customer (Pay on Completion). Expected direct wage: ₹${wage}.`;
       card = {
-        id: 'init-card-1',
+        id: 'init-card-pay-due',
         type: 'action_buttons',
-        booking: inProg,
+        booking: awaitingPayment,
         actions: [
-          { label: isEmerg ? `✓ Complete Emergency Job (Claim ₹${wage})` : `✓ Complete Job (Claim ₹${wage})`, command: 'complete job', variant: 'success' },
-          { label: '🔧 Add Extra Parts & Tasks', command: 'add diagnostic parts', variant: 'warning' },
-          { label: '📞 Call Customer', command: 'customer contact', variant: isEmerg ? 'warning' : 'neutral' },
+          { label: '📱 Show Customer UPI QR', command: `open_payment_qr:${awaitingPayment.id}`, variant: 'primary' },
+          { label: `💵 Received Cash (₹${amt})`, command: `confirm_cash:${awaitingPayment.id}`, variant: 'success' },
+          { label: `📞 Call ${custName}`, command: `call_phone:${awaitingPayment.customer?.phone || '+919855044556'}`, variant: 'neutral' },
         ],
       };
-    } else if (accepted) {
+    }
+    // PRIORITY 3: Next committed job
+    else if (accepted) {
       const wage = (Number(accepted.final_amount || accepted.estimated_amount || 0) * 0.85).toFixed(0);
       const isEmerg = accepted.is_emergency;
+      const custName = accepted.customer?.full_name || 'Customer';
+      const custPhone = accepted.customer?.phone || '+919855044556';
       greeting += isEmerg
-        ? `🚨 EMERGENCY DISPATCH ACTIVE! You have accepted emergency job ${accepted.booking_code} for ${accepted.customer?.full_name || 'Customer'} (< 15-30 min arrival SLA). Operational mode is locked to Emergency Service. Expected direct wage: ₹${wage}.`
-        : `You have 1 confirmed job ready to start: ${accepted.booking_code} for ${accepted.customer?.full_name || 'Customer'} on ${accepted.booking_date} at ${accepted.booking_time}. Expected direct wage: ₹${wage}.`;
+        ? `🚨 EMERGENCY DISPATCH ACTIVE! You have accepted emergency job ${accepted.booking_code} for ${custName} (< 15-30 min SLA). Expected direct wage: ₹${wage}.`
+        : `You have 1 confirmed job ready to start: ${accepted.booking_code} for ${custName} on ${accepted.booking_date} at ${accepted.booking_time}. Expected direct wage: ₹${wage}.`;
       card = {
         id: 'init-card-2',
         type: 'action_buttons',
         booking: accepted,
         actions: [
           { label: isEmerg ? '⚡ Start Emergency Work Now' : '⚡ Start Service Work Now', command: 'start work', variant: 'success' },
-          { label: '📍 Customer & Address', command: 'customer contact', variant: 'neutral' },
+          { label: `📞 Call ${custName}`, command: `call_phone:${custPhone}`, variant: 'neutral' },
           { label: '🔊 Read Order Aloud', command: 'read details aloud', variant: 'neutral' },
         ],
       };
-    } else if (pending.length > 0) {
+    }
+    // PRIORITY 4: Pending requests
+    else if (pending.length > 0) {
       greeting += `You have ${pending.length} new booking request${pending.length > 1 ? 's' : ''} waiting for your review. Tap any request below to view its page:`;
       card = {
         id: 'init-card-3',
         type: 'job_list',
-        jobs: [...(inProg ? [inProg] : []), ...(accepted ? [accepted] : []), ...pending],
+        jobs: pending,
         actions: [
           { label: `Accept ${pending[0].booking_code} (₹${pending[0].estimated_amount})`, command: 'accept job', variant: 'primary' },
           { label: 'Decline Request', command: 'decline job', variant: 'danger' },
         ],
       };
-    } else {
-      greeting += `You are completely caught up! No active jobs right now. You can check your earnings or review past jobs.`;
+    }
+    // PRIORITY 5: Standby
+    else {
+      greeting += `You are completely caught up! No active jobs right now. You can check your earnings or review your schedule.`;
       card = {
         id: 'init-card-4',
         type: 'action_buttons',
         actions: [
           { label: '💰 Check My Earnings', command: 'earnings summary', variant: 'primary' },
-          { label: '📋 View Schedule', command: 'my jobs', variant: 'neutral' },
+          { label: '📋 View Schedule', command: 'navigate_jobs', variant: 'neutral' },
         ],
       };
     }
@@ -919,6 +988,144 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
   const handleExecute = async (command: string) => {
     if (!command.trim() || actionInProgress) return;
     const userTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const trimmed = command.trim();
+
+    // 1. Direct Native Phone Dialer Handler
+    if (trimmed.startsWith('call_phone:') || trimmed.startsWith('tel:')) {
+      const phoneRaw = trimmed.replace('call_phone:', '').replace('tel:', '').trim();
+      const phoneClean = phoneRaw.replace(/[^0-9+]/g, '');
+      setMessages(prev => [
+        ...prev,
+        { id: 'user-' + Date.now(), sender: 'user', text: `📞 Call Customer (${phoneRaw})`, timestamp: userTime },
+        { id: 'ai-' + Date.now() + 1, sender: 'ai', text: `📞 Opening device phone dialer for ${phoneRaw}...`, timestamp: userTime },
+      ]);
+      try {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.open(`tel:${phoneClean}`, '_self');
+        } else {
+          Linking.openURL(`tel:${phoneClean}`);
+        }
+      } catch (err) {
+        Alert.alert('Phone Call', `Dial number: ${phoneRaw}`);
+      }
+      return;
+    }
+
+    // 2. Direct QR Scanner Navigation Handler
+    if (trimmed.startsWith('open_scanner:')) {
+      const bId = trimmed.replace('open_scanner:', '').trim();
+      AIAssistantService.stopSpeaking();
+      AIAssistantService.stopListening();
+      setIsOpen(false);
+      setTimeout(() => {
+        try {
+          if (rootNavigationRef.isReady()) {
+            rootNavigationRef.navigate('WorkerJobDetail', { bookingId: bId, openScanner: true });
+          }
+        } catch (err) {
+          console.warn('Could not open scanner screen', err);
+        }
+      }, 80);
+      return;
+    }
+
+    // 2.1 Direct Payment QR Navigation Handler
+    if (trimmed.startsWith('open_payment_qr:') || trimmed === 'show_payment_qr') {
+      const bId = trimmed.startsWith('open_payment_qr:') ? trimmed.replace('open_payment_qr:', '').trim() : undefined;
+      AIAssistantService.stopSpeaking();
+      AIAssistantService.stopListening();
+      setIsOpen(false);
+      setTimeout(() => {
+        try {
+          if (rootNavigationRef.isReady()) {
+            rootNavigationRef.navigate('WorkerJobDetail', { bookingId: bId, openPaymentQr: true });
+          }
+        } catch (err) {
+          console.warn('Could not open payment QR modal', err);
+        }
+      }, 80);
+      return;
+    }
+
+    // 2.2 Direct Cash Confirmation Handler
+    if (trimmed.startsWith('confirm_cash:')) {
+      const bId = trimmed.replace('confirm_cash:', '').trim();
+      setMessages(prev => [
+        ...prev,
+        { id: 'user-' + Date.now(), sender: 'user', text: `💵 Confirming cash payment...`, timestamp: userTime },
+      ]);
+      setActionInProgress(true);
+      try {
+        const bookings = await ApiClient.getBookings();
+        const b = bookings.find((item: Booking) => item.id === bId);
+        const amt = b?.final_amount || b?.estimated_amount || 0;
+        await ApiClient.confirmCashPayment(bId, amt);
+        DeviceEventEmitter.emit('app_booking_updated');
+        const wage = (Number(amt) * 0.85).toFixed(0);
+        const confirmMsg: AssistantMessage = {
+          id: 'ai-cash-' + Date.now(),
+          sender: 'ai',
+          text: `🎉 Cash payment of ₹${amt} confirmed for job ${b?.booking_code || ''}!\n• ₹${wage} credited to your direct wage balance (85%).\n• Service invoice generated and marked paid.`,
+          timestamp: userTime,
+          card: {
+            id: 'card-cash-ok-' + Date.now(),
+            type: 'earnings_summary',
+            actions: [
+              { label: '💰 Check My Earnings', command: 'earnings summary', variant: 'primary' },
+              { label: '📋 View Schedule', command: 'navigate_jobs', variant: 'neutral' },
+            ],
+          },
+        };
+        setMessages(prev => [...prev, confirmMsg]);
+        setIsSpeaking(true);
+        AIAssistantService.speak(`Cash payment of ${amt} rupees confirmed. Wage credited.`, () => setIsSpeaking(false));
+        await refreshContext();
+      } catch (err: any) {
+        Alert.alert('Error', err.message || 'Could not confirm cash payment');
+      } finally {
+        setActionInProgress(false);
+      }
+      return;
+    }
+
+    // 3. Direct Schedule Navigation Handler
+    if (trimmed === 'navigate_jobs') {
+      AIAssistantService.stopSpeaking();
+      AIAssistantService.stopListening();
+      setIsOpen(false);
+      setTimeout(() => {
+        try {
+          if (rootNavigationRef.isReady()) {
+            rootNavigationRef.navigate('WorkerTabs', { screen: 'WorkerJobs' });
+          }
+        } catch (err) {
+          console.warn('Could not navigate to schedule', err);
+        }
+      }, 80);
+      return;
+    }
+
+    // 4. Direct Send Estimate Handler if parts are already selected in the active card
+    const normalizedCmd = trimmed.toLowerCase();
+    if (
+      (normalizedCmd === 'send estimate' ||
+        normalizedCmd.includes('send estimate') ||
+        normalizedCmd.includes('estimate bhejo') ||
+        normalizedCmd.includes('submit estimate')) &&
+      activePartsPickerRef.current &&
+      activePartsPickerRef.current.selectedItems.length > 0
+    ) {
+      const userMsg: AssistantMessage = {
+        id: 'user-' + Date.now(),
+        sender: 'user',
+        text: command,
+        timestamp: userTime,
+      };
+      setMessages(prev => [...prev, userMsg]);
+      setInputText('');
+      await activePartsPickerRef.current.submit();
+      return;
+    }
 
     // Append user message
     const userMsg: AssistantMessage = {
@@ -933,7 +1140,7 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
     setActionInProgress(true);
 
     try {
-      const outcome: AssistantActionOutcome = await AIAssistantService.executeCommand(command);
+      const outcome: AssistantActionOutcome = await AIAssistantService.executeCommand(command, workerId);
       const aiTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       const aiMsg: AssistantMessage = {
@@ -1012,6 +1219,209 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
   const activeJob = context?.activeOnSiteJob || context?.nextCommittedJob;
   const hasEmergencyPending = context?.pendingJobs?.some(j => j.is_emergency);
 
+  // Uncluttered Adaptive Contextual Action Chips (Exactly 3 pills tailored to current state)
+  const renderContextualChips = () => {
+    if (context?.activeOnSiteJob) {
+      const active = context.activeOnSiteJob;
+      const phone = active.customer?.phone || '+919855044556';
+      return (
+        <View style={styles.chipRowUncluttered}>
+          <TouchableOpacity
+            style={[styles.chip, styles.chipSuccess]}
+            onPress={() => handleExecute('complete job')}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <CheckCircle2 size={13} color="#059669" />
+            <Text style={[styles.chipText, styles.chipTextSuccess]}>Complete</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.chip, styles.chipWarning]}
+            onPress={() => handleExecute('add diagnostic parts')}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <Wrench size={13} color="#d97706" />
+            <Text style={[styles.chipText, styles.chipTextWarning]}>Extra Parts</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.chip}
+            onPress={() => handleExecute(`call_phone:${phone}`)}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <Phone size={13} color="#2563eb" />
+            <Text style={styles.chipText}>Call Client</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (hasEmergencyPending) {
+      return (
+        <View style={styles.chipRowUncluttered}>
+          <TouchableOpacity
+            style={[styles.chip, styles.chipEmergency]}
+            onPress={() => handleExecute('accept job')}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <AlertTriangle size={13} color="#ef4444" />
+            <Text style={[styles.chipText, styles.chipTextEmergency]}>Accept SOS</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.chip}
+            onPress={() => handleExecute('navigate_jobs')}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <Clock size={13} color="#2563eb" />
+            <Text style={styles.chipText}>Schedule</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.chip}
+            onPress={() => handleExecute('earnings summary')}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <TrendingUp size={13} color="#059669" />
+            <Text style={styles.chipText}>Earnings</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (context?.awaitingPaymentJob) {
+      const waitJob = context.awaitingPaymentJob;
+      const finalAmt = waitJob.final_amount || waitJob.estimated_amount || 0;
+      return (
+        <View style={styles.chipRowUncluttered}>
+          <TouchableOpacity
+            style={[styles.chip, styles.chipWarning]}
+            onPress={() => handleExecute(`open_payment_qr:${waitJob.id}`)}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <Zap size={13} color="#d97706" />
+            <Text style={[styles.chipText, styles.chipTextWarning]}>Show UPI QR</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.chip, styles.chipSuccess]}
+            onPress={() => handleExecute(`confirm_cash:${waitJob.id}`)}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <CheckCircle2 size={13} color="#059669" />
+            <Text style={[styles.chipText, styles.chipTextSuccess]}>Paid Cash (₹{finalAmt})</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.chip}
+            onPress={() => handleExecute('earnings summary')}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <TrendingUp size={13} color="#2563eb" />
+            <Text style={styles.chipText}>Earnings</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (context?.nextCommittedJob) {
+      const nextJob = context.nextCommittedJob;
+      const phone = nextJob.customer?.phone || '+919855044556';
+      return (
+        <View style={styles.chipRowUncluttered}>
+          <TouchableOpacity
+            style={[styles.chip, styles.chipSuccess]}
+            onPress={() => handleExecute('start work')}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <Zap size={13} color="#059669" />
+            <Text style={[styles.chipText, styles.chipTextSuccess]}>Start Work</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.chip}
+            onPress={() => handleExecute(`call_phone:${phone}`)}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <Phone size={13} color="#2563eb" />
+            <Text style={styles.chipText}>Call Client</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.chip}
+            onPress={() => handleExecute('navigate_jobs')}
+            disabled={actionInProgress}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+          >
+            <Clock size={13} color="#2563eb" />
+            <Text style={styles.chipText}>Schedule</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Default Standby / Free
+    return (
+      <View style={styles.chipRowUncluttered}>
+        <TouchableOpacity
+          style={styles.chip}
+          onPress={() => handleExecute('navigate_jobs')}
+          disabled={actionInProgress}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+        >
+          <Clock size={13} color="#2563eb" />
+          <Text style={styles.chipText}>Schedule</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.chip}
+          onPress={() => handleExecute('earnings summary')}
+          disabled={actionInProgress}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+        >
+          <TrendingUp size={13} color="#059669" />
+          <Text style={styles.chipText}>Earnings</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.chip}
+          onPress={() => handleExecute('help')}
+          disabled={actionInProgress}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+        >
+          <Sparkles size={13} color="#8b5cf6" />
+          <Text style={styles.chipText}>Help</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <>
       {/* ------------------------------------------------------------------- */}
@@ -1069,8 +1479,25 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
           setIsOpen(false);
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.sheetContainer, { backgroundColor: isDark ? '#0f172a' : '#ffffff' }]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          {/* Backdrop Tap to Dismiss (area above the bottom sheet) */}
+          <TouchableOpacity
+            style={styles.backdropDismiss}
+            activeOpacity={1}
+            onPress={() => {
+              AIAssistantService.stopSpeaking();
+              AIAssistantService.stopListening();
+              setIsOpen(false);
+            }}
+            accessibilityLabel="Close assistant sheet"
+          />
+
+          <View
+            style={[styles.sheetContainer, { backgroundColor: isDark ? '#0f172a' : '#ffffff' }]}
+          >
             {/* Handle */}
             <View style={styles.sheetHandle} />
 
@@ -1080,12 +1507,16 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
                 <View style={styles.aiBadgeIcon}>
                   <Sparkles size={16} color="#10b981" />
                 </View>
-                <View>
-                  <Text style={[styles.sheetTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.sheetTitle, { color: isDark ? '#f8fafc' : '#0f172a' }]} numberOfLines={1}>
                     Sahakari Assistant
                   </Text>
-                  <Text style={styles.sheetSubtitle}>
-                    Your Smart Task & Voice Companion
+                  <Text
+                    style={[styles.sheetSubtitle, { color: isDark ? '#94a3b8' : '#64748b' }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    Voice & Task Companion
                   </Text>
                 </View>
               </View>
@@ -1107,7 +1538,7 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
                 {/* Refresh Context */}
                 <TouchableOpacity
                   style={styles.iconHeaderBtn}
-                  onPress={refreshContext}
+                  onPress={() => refreshContext(true)}
                   disabled={loading}
                 >
                   <RefreshCw size={17} color={colors.textMuted} />
@@ -1254,6 +1685,14 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
                         onSubmit={async (items, notes) => {
                           await handleSendDiagnosticEstimate(msg.card!.booking!.id, items, notes);
                         }}
+                        onStateChange={(cardState) => {
+                          activePartsPickerRef.current = {
+                            bookingId: msg.card!.booking!.id,
+                            selectedItems: cardState.selectedItems,
+                            notes: cardState.notes,
+                            submit: cardState.submit,
+                          };
+                        }}
                       />
                     )}
 
@@ -1286,73 +1725,8 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
               )}
             </ScrollView>
 
-            {/* Quick Action Suggestion Chips */}
-            <View style={styles.chipRow}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
-                <TouchableOpacity
-                  style={[styles.chip, styles.chipEmergency]}
-                  onPress={() => handleExecute('check emergency requests')}
-                  disabled={actionInProgress}
-                >
-                  <AlertTriangle size={13} color="#ef4444" />
-                  <Text style={[styles.chipText, styles.chipTextEmergency]}>🚨 Emergency Jobs</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.chip}
-                  onPress={() => handleExecute('all requests')}
-                  disabled={actionInProgress}
-                >
-                  <Clock size={13} color="#2563eb" />
-                  <Text style={styles.chipText}>All Requests</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.chip}
-                  onPress={() => handleExecute('start work')}
-                  disabled={actionInProgress}
-                >
-                  <Zap size={13} color="#10b981" />
-                  <Text style={styles.chipText}>Start Work</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.chip}
-                  onPress={() => handleExecute('complete job')}
-                  disabled={actionInProgress}
-                >
-                  <CheckCircle2 size={13} color="#059669" />
-                  <Text style={styles.chipText}>Complete Job</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.chip}
-                  onPress={() => handleExecute('add diagnostic parts')}
-                  disabled={actionInProgress}
-                >
-                  <Wrench size={13} color="#f59e0b" />
-                  <Text style={styles.chipText}>Extra Parts</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.chip}
-                  onPress={() => handleExecute('earnings summary')}
-                  disabled={actionInProgress}
-                >
-                  <TrendingUp size={13} color="#059669" />
-                  <Text style={styles.chipText}>Earnings</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.chip}
-                  onPress={() => handleExecute('read details aloud')}
-                  disabled={actionInProgress}
-                >
-                  <Volume2 size={13} color="#8b5cf6" />
-                  <Text style={styles.chipText}>Read Aloud</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
+            {/* Uncluttered Adaptive Quick Action Chips (Max 3 pills tailored to state) */}
+            {renderContextualChips()}
 
             {/* Input Bar */}
             <View
@@ -1406,12 +1780,14 @@ export const WorkerAIAssistantWidget: React.FC<WorkerAIAssistantWidgetProps> = (
                 onPress={() => handleExecute(inputText)}
                 disabled={!inputText.trim() || actionInProgress}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Send command"
               >
                 <Send size={16} color="#ffffff" />
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -1496,6 +1872,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.65)',
     justifyContent: 'flex-end',
   },
+  backdropDismiss: {
+    flex: 1,
+    width: '100%',
+  },
   sheetContainer: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -1522,7 +1902,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
@@ -1532,6 +1912,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     flex: 1,
+    minWidth: 0,
   },
   aiBadgeIcon: {
     width: 36,
@@ -1553,16 +1934,17 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontWeight: '500',
     marginTop: 1,
+    flexShrink: 1,
   },
   sheetHeaderActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   iconHeaderBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#f8fafc',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1668,6 +2050,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   cardActionSuccess: {
     backgroundColor: '#059669',
@@ -1704,26 +2087,46 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Quick Action Chips
-  chipRow: {
-    paddingVertical: 6,
+  // Uncluttered Adaptive 3-Pill Action Row
+  chipRowUncluttered: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
   },
-  chipScroll: {
-    paddingHorizontal: 14,
-    gap: 8,
-  },
   chip: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#f8fafc',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: 9,
     gap: 5,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+  },
+  chipSuccess: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+  },
+  chipTextSuccess: {
+    color: '#059669',
+    fontWeight: '800',
+  },
+  chipWarning: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+  },
+  chipTextWarning: {
+    color: '#b45309',
+    fontWeight: '800',
   },
   chipEmergency: {
     backgroundColor: '#fef2f2',
@@ -1756,6 +2159,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
     justifyContent: 'center',
     alignItems: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   micBtnActive: {
     backgroundColor: '#ef4444',
@@ -1775,6 +2179,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
     justifyContent: 'center',
     alignItems: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
   },
   sendBtnDisabled: {
     opacity: 0.4,
@@ -2021,30 +2426,35 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
     color: '#ffffff',
   },
-  customRow: {
+  typeSegmentedGroup: {
     flexDirection: 'row',
     gap: 6,
+    width: '100%',
+  },
+  typeSegmentedBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 6,
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  typeToggleGroup: {
-    flexDirection: 'row',
-    gap: 3,
+  typeSegmentedBtnDark: {
+    backgroundColor: '#0f172a',
+    borderColor: '#334155',
   },
-  typeToggleBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 5,
-    borderRadius: 4,
-    backgroundColor: '#e2e8f0',
-  },
-  typeToggleBtnActive: {
+  typeSegmentedBtnActive: {
     backgroundColor: '#059669',
+    borderColor: '#059669',
   },
-  typeToggleBtnText: {
-    fontSize: 9.5,
+  typeSegmentedBtnText: {
+    fontSize: 11,
     fontWeight: '700',
     color: '#475569',
   },
-  typeToggleBtnTextActive: {
+  typeSegmentedBtnTextActive: {
     color: '#ffffff',
   },
   addCustomSubmitBtn: {
@@ -2353,3 +2763,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 });
+
+
+
+

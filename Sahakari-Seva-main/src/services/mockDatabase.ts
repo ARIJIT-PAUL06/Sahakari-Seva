@@ -503,7 +503,7 @@ export const MOCK_BOOKINGS: Booking[] = [
     latitude: 26.9017, longitude: 75.7925,
     service_description: 'Solar inverter wiring and battery connection check.',
     estimated_amount: 499, final_amount: 499, is_emergency: false,
-    status: 'completed', payment_status: 'paid',
+    status: 'in_progress', payment_status: 'pending',
     created_at: '2026-09-09T09:00:00Z', updated_at: '2026-09-11T12:30:00Z',
     worker: worker('w0000000-0000-0000-0000-000000000001'), customer: customer('p0000000-0000-0000-0000-000000000002'), service_category: cat('s0000000-0000-0000-0000-000000000001'),
   },
