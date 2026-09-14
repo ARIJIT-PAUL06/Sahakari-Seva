@@ -139,6 +139,7 @@ export const QUICK_SUGGESTIONS = [
   { label: '📍 Jaipur Workers', query: 'Jaipur' },
   { label: '🗺️ Live Map', query: 'map' },
   { label: '📅 My Bookings', query: 'bookings' },
+  { label: '🗄️ Database Health', query: 'database' },
   { label: '🤝 Worker Welfare', query: 'welfare' },
 ];
 
@@ -629,6 +630,35 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         badgeBg: '#E8F7F1',
         icon: CheckCircle,
         onPress: () => navigation.navigate('Bookings'),
+      });
+    }
+
+    // Persistent Database & Sync Health
+    if (
+      [
+        'database',
+        'sync',
+        'backup',
+        'storage',
+        'data health',
+        'audit',
+        'change log',
+        'offline data',
+        'cloud sync',
+        'persist',
+        'डेटाबेस',
+        'भंडारण',
+      ].some(k => q.includes(k))
+    ) {
+      matchedActions.push({
+        id: 'action-database',
+        title: 'Database & Sync Health Monitor',
+        subtitle: '100% persistent local database engine with cloud sync queue and immutable audit change log',
+        badge: 'PERSISTENT ACTIVE',
+        badgeColor: '#087F5B',
+        badgeBg: '#E8F7F1',
+        icon: ShieldCheck,
+        onPress: () => navigation.navigate('CustomerProfile'),
       });
     }
 

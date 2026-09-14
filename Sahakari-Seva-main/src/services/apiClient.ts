@@ -38,6 +38,7 @@ import {
   buildNearbyWorkers,
   haversineKm,
 } from './mockDatabase';
+import { DatabaseService } from './databaseService';
 
 function resolveApiBaseUrl(): string {
   const configuredUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -258,48 +259,23 @@ export class ApiClient {
       const res = await this.request<any>(path);
       return Array.isArray(res) ? res : res.data || [];
     } catch {
+      const all = await DatabaseService.workers.getAll();
       const list = verification
-        ? MOCK_WORKERS.filter(w => w.verification_status === verification)
-        : MOCK_WORKERS;
-      return list.length ? list : MOCK_WORKERS;
+        ? all.filter(w => w.verification_status === verification)
+        : all;
+      return list.length ? list : all;
     }
   }
 
   public static async getWorkerById(id: string): Promise<Worker> {
-    let worker: Worker;
     try {
-      worker = await this.request<Worker>(`/workers/${id}`);
+      return await this.request<Worker>(`/workers/${id}`);
     } catch {
-      worker = (
-        MOCK_WORKERS.find(w => w.id === id) ||
-        MOCK_WORKERS[0] || {
-          id: id || 'w0000000-0000-0000-0000-000000000001',
-          worker_code: 'WRK-JPR-0101',
-          skill_category: 'Electrical',
-          skills: ['House Wiring'],
-          experience_years: 8,
-          service_area: 'C-Scheme, Jaipur',
-          pincode: '302001',
-          hourly_or_base_rate: 249,
-          average_rating: 4.9,
-          total_jobs: 142,
-          total_earnings: 74200,
-          welfare_status: 'Active Member',
-          insurance_status: 'Ayushman Bharat + PMSBY',
-          availability_status: 'available',
-          verification_status: 'verified',
-        } as any
-      );
+      const w = await DatabaseService.workers.getById(id);
+      if (w) return w;
+      const all = await DatabaseService.workers.getAll();
+      return all[0] || (MOCK_WORKERS[0] as any);
     }
-
-    const savedStatus = await this.restoreWorkerAvailability(worker.id);
-    if (savedStatus) {
-      worker.availability_status = savedStatus as any;
-      const memWorker = MOCK_WORKERS.find(x => x.id === worker.id);
-      if (memWorker) memWorker.availability_status = savedStatus as any;
-    }
-
-    return worker;
   }
 
   public static async updateWorkerProfile(
@@ -312,9 +288,10 @@ export class ApiClient {
         body: JSON.stringify(updates)
       });
     } catch {
-      const w = MOCK_WORKERS.find(x => x.id === workerId) || MOCK_WORKERS[0];
+      const w = await DatabaseService.workers.getById(workerId) || MOCK_WORKERS[0];
       if (w) {
         Object.assign(w, updates);
+        await DatabaseService.workers.update(workerId, updates);
         return w;
       }
       return { id: workerId, ...updates } as any;
@@ -333,14 +310,10 @@ export class ApiClient {
         body: JSON.stringify({ latitude: lat, longitude: lng, service_radius_km: radius })
       });
     } catch {
-      const w = MOCK_WORKERS.find(x => x.id === workerId);
-      if (w) {
-        w.latitude = lat;
-        w.longitude = lng;
-        w.service_radius_km = radius ?? w.service_radius_km;
-        return w;
-      }
-      return { id: workerId, latitude: lat, longitude: lng, service_radius_km: radius } as any;
+      const updates = { latitude: lat, longitude: lng, service_radius_km: radius };
+      await DatabaseService.workers.update(workerId, updates);
+      const w = await DatabaseService.workers.getById(workerId);
+      return w || ({ id: workerId, ...updates } as any);
     }
   }
 
@@ -354,18 +327,10 @@ export class ApiClient {
         method: 'PATCH',
         body: JSON.stringify({ status })
       });
-      const w = MOCK_WORKERS.find(x => x.id === workerId);
-      if (w) {
-        w.availability_status = status as any;
-      }
+      await DatabaseService.workers.updateAvailability(workerId, status as any);
       return res;
     } catch {
-      const w = MOCK_WORKERS.find(x => x.id === workerId);
-      if (w) {
-        w.availability_status = status as any;
-        return w;
-      }
-      return { id: workerId, availability_status: status } as any;
+      return await DatabaseService.workers.updateAvailability(workerId, status as any);
     }
   }
 
@@ -377,18 +342,7 @@ export class ApiClient {
       if (workerId) url += `?worker_id=${workerId}`;
       return await this.request<Booking[]>(url);
     } catch {
-      let list = await Promise.all(
-        MOCK_BOOKINGS.map(async b => {
-          const stored = await this.restoreBooking(b.id);
-          if (stored) {
-            Object.assign(b, stored);
-          }
-          return b;
-        })
-      );
-      if (customerId) list = list.filter(b => b.customer_id === customerId);
-      if (workerId) list = list.filter(b => b.worker_id === workerId);
-      return [...list].sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
+      return await DatabaseService.bookings.getAll({ customerId, workerId });
     }
   }
 
@@ -400,14 +354,7 @@ export class ApiClient {
       // offline fallback
     }
 
-    const inMem = MOCK_BOOKINGS.find(b => b.id === bookingId || b.booking_code === bookingId);
-    const stored = await this.restoreBooking(bookingId);
-    if (stored && inMem) {
-      Object.assign(inMem, stored);
-      return inMem;
-    }
-    if (stored) return stored;
-    return inMem || null;
+    return await DatabaseService.bookings.getById(bookingId);
   }
 
   public static async createBooking(bookingPayload: any): Promise<Booking> {
@@ -416,11 +363,17 @@ export class ApiClient {
         method: 'POST',
         body: JSON.stringify(bookingPayload)
       });
+      await DatabaseService.bookings.insert(created);
       DeviceEventEmitter.emit('app_booking_updated');
       return created;
     } catch {
-      const workerInfo = MOCK_WORKERS.find(w => w.id === bookingPayload.worker_id);
-      const customerInfo = MOCK_CUSTOMERS.find(c => c.id === bookingPayload.customer_id);
+      const workerInfo =
+        (await DatabaseService.workers.getById(bookingPayload.worker_id)) ||
+        MOCK_WORKERS.find(w => w.id === bookingPayload.worker_id);
+      const customerInfo =
+        (await DatabaseService.profiles.getCustomerProfile(bookingPayload.customer_id)) ||
+        MOCK_CUSTOMERS.find(c => c.id === bookingPayload.customer_id);
+
       const booking: Booking = {
         id: 'bk-' + Date.now(),
         booking_code: 'BK-2026-' + Math.floor(1000 + Math.random() * 9000),
@@ -433,8 +386,10 @@ export class ApiClient {
         worker: workerInfo,
         customer: customerInfo,
       } as any;
-      MOCK_BOOKINGS.unshift(booking);
-      MOCK_NOTIFICATIONS.customer.unshift({
+
+      const created = await DatabaseService.bookings.insert(booking);
+
+      await DatabaseService.notifications.insert({
         id: 'notif-c-' + Date.now(),
         user_id: bookingPayload.customer_id || 'p0000000-0000-0000-0000-000000000002',
         type: (booking.is_emergency ? 'emergency' : 'booking') as any,
@@ -447,8 +402,9 @@ export class ApiClient {
         read: false,
         action_url: '/bookings',
         created_at: new Date().toISOString(),
-      });
-      MOCK_NOTIFICATIONS.worker.unshift({
+      }, 'customer');
+
+      await DatabaseService.notifications.insert({
         id: 'notif-w-' + Date.now(),
         user_id: bookingPayload.worker_id || 'w0000000-0000-0000-0000-000000000001',
         type: (booking.is_emergency ? 'emergency' : 'booking') as any,
@@ -461,9 +417,10 @@ export class ApiClient {
         read: false,
         action_url: '/jobs',
         created_at: new Date().toISOString(),
-      });
+      }, 'worker');
+
       DeviceEventEmitter.emit('app_booking_updated');
-      return booking;
+      return created;
     }
   }
 
@@ -589,7 +546,7 @@ export class ApiClient {
   }
 
   public static async updateBookingStatus(bookingId: string, status: string): Promise<Booking> {
-    const targetBooking = MOCK_BOOKINGS.find(x => x.id === bookingId);
+    const targetBooking = (await DatabaseService.bookings.getById(bookingId)) || MOCK_BOOKINGS.find(x => x.id === bookingId);
     if (targetBooking && this.isPrepaidViolation(targetBooking)) {
       throw new Error(
         "Access Revoked: Customer prepayment was detected before service commenced. Under cooperative bylaws, this job profile is locked from worker access and transferred to Federation Dispute Audit."
@@ -603,16 +560,20 @@ export class ApiClient {
 
     // 1. If accepting a job, verify schedule collision and adjust time if exact collision
     if (status === 'accepted' && targetBooking) {
-      const conflict = this.checkScheduleConflict(targetBooking, MOCK_BOOKINGS, 60);
+      const allBookings = await DatabaseService.bookings.getAll();
+      const conflict = this.checkScheduleConflict(targetBooking, allBookings, 60);
       if (conflict.hasConflict && conflict.isExactCollision) {
         const existingHour = parseInt(targetBooking.booking_time?.split(':')[0] || '14', 10);
-        targetBooking.booking_time = `${Math.min(existingHour + 2, 20)}:00`;
+        await DatabaseService.bookings.update(bookingId, {
+          booking_time: `${Math.min(existingHour + 2, 20)}:00`,
+        });
       }
     }
 
     // 2. If starting a job, auto-complete any older in_progress job so the worker is never blocked
     if (status === 'in_progress') {
-      const ongoingJob = MOCK_BOOKINGS.find(
+      const allBookings = await DatabaseService.bookings.getAll();
+      const ongoingJob = allBookings.find(
         b =>
           (b.worker_id === assignedWorkerId || (b.worker as any)?.id === assignedWorkerId) &&
           b.id !== bookingId &&
@@ -620,8 +581,7 @@ export class ApiClient {
       );
 
       if (ongoingJob) {
-        ongoingJob.status = 'completed';
-        ongoingJob.updated_at = new Date().toISOString();
+        await DatabaseService.bookings.update(ongoingJob.id, { status: 'completed' });
       }
     }
 
@@ -631,15 +591,9 @@ export class ApiClient {
         method: 'PATCH',
         body: JSON.stringify({ status })
       });
+      await DatabaseService.bookings.update(bookingId, { status: status as any });
     } catch {
-      const b = MOCK_BOOKINGS.find(x => x.id === bookingId);
-      if (b) {
-        b.status = status as any;
-        b.updated_at = new Date().toISOString();
-        resultBooking = b;
-      } else {
-        resultBooking = { id: bookingId, status } as any;
-      }
+      resultBooking = await DatabaseService.bookings.update(bookingId, { status: status as any });
     }
 
     // Automatically shift operational duty status for the assigned service worker
@@ -655,9 +609,13 @@ export class ApiClient {
           await this.updateWorkerAvailability(assignedWorkerId, targetMode);
 
           // Notify customer that booking is officially confirmed
-          const workerObj = MOCK_WORKERS.find(w => w.id === assignedWorkerId);
-          const workerName = workerObj?.profile?.full_name || (workerObj as any)?.name || 'Service Professional';
-          MOCK_NOTIFICATIONS.customer.unshift({
+          const workerObj =
+            (await DatabaseService.workers.getById(assignedWorkerId)) ||
+            MOCK_WORKERS.find(w => w.id === assignedWorkerId);
+          const workerName =
+            workerObj?.profile?.full_name || (workerObj as any)?.name || 'Service Professional';
+
+          await DatabaseService.notifications.insert({
             id: 'notif-c-' + Date.now(),
             user_id: resultBooking.customer_id || 'p0000000-0000-0000-0000-000000000002',
             type: resultBooking.is_emergency ? 'emergency' : 'booking',
@@ -670,23 +628,20 @@ export class ApiClient {
             read: false,
             action_url: '/bookings',
             created_at: new Date().toISOString(),
-          });
+          }, 'customer');
         } else if (status === 'completed' || status === 'cancelled' || status === 'rejected') {
-          // Check if worker has any other active jobs in 'accepted' or 'in_progress'
-          const remainingActiveJobs = MOCK_BOOKINGS.filter(
+          const allBookings = await DatabaseService.bookings.getAll();
+          const remainingActiveJobs = allBookings.filter(
             bk =>
               (bk.worker_id === assignedWorkerId || (bk.worker as any)?.id === assignedWorkerId) &&
               bk.id !== bookingId &&
               (bk.status === 'accepted' || bk.status === 'in_progress')
           );
           if (remainingActiveJobs.length === 0) {
-            // Revert automatically back to 'available' ("Active for work")
             await this.updateWorkerAvailability(assignedWorkerId, 'available');
           } else if (remainingActiveJobs.some(b => b.is_emergency)) {
-            // Keep on emergency service if another emergency job is active
             await this.updateWorkerAvailability(assignedWorkerId, 'emergency_only');
           } else {
-            // Otherwise remain on active work
             await this.updateWorkerAvailability(assignedWorkerId, 'busy');
           }
         }
@@ -702,7 +657,9 @@ export class ApiClient {
    * Generates a single-use 4-digit code and QR payload, and notifies the customer.
    */
   public static async requestJobCompletion(bookingId: string): Promise<Booking> {
-    const targetBooking = MOCK_BOOKINGS.find(x => x.id === bookingId);
+    const targetBooking =
+      (await DatabaseService.bookings.getById(bookingId)) ||
+      MOCK_BOOKINGS.find(x => x.id === bookingId);
     if (!targetBooking) {
       throw new Error('Booking not found');
     }
@@ -716,21 +673,21 @@ export class ApiClient {
       timestamp: Date.now(),
     });
 
-    targetBooking.completion_requested = true;
-    targetBooking.completion_requested_at = new Date().toISOString();
-    targetBooking.completion_code = code;
-    targetBooking.completion_qr_payload = qrPayload;
-    targetBooking.updated_at = new Date().toISOString();
-    await this.persistBooking(targetBooking);
+    const updated = await DatabaseService.bookings.update(targetBooking.id, {
+      completion_requested: true,
+      completion_requested_at: new Date().toISOString(),
+      completion_code: code,
+      completion_qr_payload: qrPayload,
+    });
 
-    const workerObj = MOCK_WORKERS.find(
-      w => w.id === (targetBooking.worker_id || (targetBooking.worker as any)?.id)
-    );
+    const workerObj =
+      (await DatabaseService.workers.getById(targetBooking.worker_id || (targetBooking.worker as any)?.id)) ||
+      MOCK_WORKERS.find(w => w.id === (targetBooking.worker_id || (targetBooking.worker as any)?.id));
     const workerName =
       workerObj?.profile?.full_name || (workerObj as any)?.name || 'Your Service Professional';
 
     // Notify customer that service sign-off is requested
-    MOCK_NOTIFICATIONS.customer.unshift({
+    await DatabaseService.notifications.insert({
       id: `notif-c-comp-${Date.now()}`,
       user_id: targetBooking.customer_id || 'p0000000-0000-0000-0000-000000000002',
       type: 'booking',
@@ -739,7 +696,7 @@ export class ApiClient {
       read: false,
       action_url: `/bookings/${targetBooking.id}?showCompletionQr=1`,
       created_at: new Date().toISOString(),
-    });
+    }, 'customer');
 
     DeviceEventEmitter.emit('app_booking_updated');
     DeviceEventEmitter.emit('customer_completion_requested', {
@@ -749,7 +706,7 @@ export class ApiClient {
       bookingCode: targetBooking.booking_code,
     });
 
-    return { ...targetBooking };
+    return updated;
   }
 
   /**
@@ -759,7 +716,9 @@ export class ApiClient {
     bookingId: string,
     codeOrPayload: string
   ): Promise<Booking> {
-    const targetBooking = MOCK_BOOKINGS.find(x => x.id === bookingId);
+    const targetBooking =
+      (await DatabaseService.bookings.getById(bookingId)) ||
+      MOCK_BOOKINGS.find(x => x.id === bookingId);
     if (!targetBooking) {
       throw new Error('Booking not found');
     }
@@ -784,22 +743,19 @@ export class ApiClient {
       (extractedCode === targetBooking.completion_code ||
         trimmed.includes(targetBooking.completion_code));
 
-    // In demo mode, if code hasn't been generated yet or matches
     if (!isDirectOrSimulated && !isMatch && targetBooking.completion_code) {
       throw new Error(
         'Invalid Verification Code. Please ask customer to show their screen with the Completion QR.'
       );
     }
 
-    targetBooking.status = 'completed';
-    targetBooking.completion_requested = false;
-    targetBooking.completion_code = undefined;
-    targetBooking.completion_qr_payload = undefined;
-    // Under Sahakari cooperative bylaws (Pay on Service Completion):
-    // Verifying service completion confirms physical work is done, unlocking payment by customer.
-    targetBooking.payment_status = 'pending';
-    targetBooking.updated_at = new Date().toISOString();
-    await this.persistBooking(targetBooking);
+    const updated = await DatabaseService.bookings.update(targetBooking.id, {
+      status: 'completed',
+      completion_requested: false,
+      completion_code: undefined,
+      completion_qr_payload: undefined,
+      payment_status: 'pending',
+    });
 
     const assignedWorkerId =
       targetBooking.worker_id ||
@@ -807,7 +763,8 @@ export class ApiClient {
       (targetBooking as any)?.workerId;
 
     if (assignedWorkerId) {
-      const remainingActiveJobs = MOCK_BOOKINGS.filter(
+      const allBookings = await DatabaseService.bookings.getAll();
+      const remainingActiveJobs = allBookings.filter(
         bk =>
           (bk.worker_id === assignedWorkerId || (bk.worker as any)?.id === assignedWorkerId) &&
           bk.id !== bookingId &&
@@ -818,7 +775,7 @@ export class ApiClient {
       }
     }
 
-    MOCK_NOTIFICATIONS.customer.unshift({
+    await DatabaseService.notifications.insert({
       id: `notif-c-done-${Date.now()}`,
       user_id: targetBooking.customer_id || 'p0000000-0000-0000-0000-000000000002',
       type: 'booking',
@@ -827,9 +784,9 @@ export class ApiClient {
       read: false,
       action_url: `/bookings/${targetBooking.id}`,
       created_at: new Date().toISOString(),
-    });
+    }, 'customer');
 
-    MOCK_NOTIFICATIONS.worker.unshift({
+    await DatabaseService.notifications.insert({
       id: `notif-w-done-${Date.now()}`,
       user_id: targetBooking.worker_id || 'w0000000-0000-0000-0000-000000000001',
       type: 'booking',
@@ -838,10 +795,10 @@ export class ApiClient {
       read: false,
       action_url: `/jobs/${targetBooking.id}`,
       created_at: new Date().toISOString(),
-    });
+    }, 'worker');
 
     DeviceEventEmitter.emit('app_booking_updated');
-    return { ...targetBooking };
+    return updated;
   }
 
   public static async confirmCashPayment(
@@ -874,19 +831,16 @@ export class ApiClient {
         method: 'PATCH',
         body: JSON.stringify({ booking_date: newDate, booking_time: newTime })
       });
+      await DatabaseService.bookings.update(bookingId, { booking_date: newDate, booking_time: newTime });
       DeviceEventEmitter.emit('app_booking_updated');
       return res;
     } catch {
-      const b = MOCK_BOOKINGS.find(x => x.id === bookingId);
-      if (b) {
-        b.booking_date = newDate;
-        b.booking_time = newTime;
-        b.updated_at = new Date().toISOString();
-        DeviceEventEmitter.emit('app_booking_updated');
-        return { ...b };
-      }
+      const updated = await DatabaseService.bookings.update(bookingId, {
+        booking_date: newDate,
+        booking_time: newTime,
+      });
       DeviceEventEmitter.emit('app_booking_updated');
-      return { id: bookingId, booking_date: newDate, booking_time: newTime } as any;
+      return updated;
     }
   }
 
@@ -911,31 +865,30 @@ export class ApiClient {
     };
 
     try {
-      return await this.request<Booking>(`/bookings/${bookingId}/supplemental-bill`, {
+      const res = await this.request<Booking>(`/bookings/${bookingId}/supplemental-bill`, {
         method: 'POST',
         body: JSON.stringify(supplementalBill),
       });
+      await DatabaseService.bookings.update(bookingId, { supplemental_bill: supplementalBill });
+      return res;
     } catch {
-      const b = MOCK_BOOKINGS.find(x => x.id === bookingId);
-      if (b) {
-        b.supplemental_bill = supplementalBill;
-        b.updated_at = new Date().toISOString();
+      const updated = await DatabaseService.bookings.update(bookingId, {
+        supplemental_bill: supplementalBill,
+      });
 
-        // Push real-time notification to Customer
-        MOCK_NOTIFICATIONS.customer.unshift({
-          id: 'notif-c-' + Date.now(),
-          user_id: b.customer_id,
-          type: 'extra_bill',
-          title: `⚠️ Additional Work Estimate: ₹${subtotal}`,
-          message: `${b.worker?.profile?.full_name || 'Worker'} discovered additional defective issues for ${b.booking_code}. Please review and approve.`,
-          read: false,
-          action_url: `/bookings`,
-          created_at: new Date().toISOString(),
-        });
+      // Push real-time notification to Customer
+      await DatabaseService.notifications.insert({
+        id: 'notif-c-' + Date.now(),
+        user_id: updated.customer_id,
+        type: 'extra_bill',
+        title: `⚠️ Additional Work Estimate: ₹${subtotal}`,
+        message: `${updated.worker?.profile?.full_name || 'Worker'} discovered additional defective issues for ${updated.booking_code}. Please review and approve.`,
+        read: false,
+        action_url: `/bookings`,
+        created_at: new Date().toISOString(),
+      }, 'customer');
 
-        return { ...b };
-      }
-      return { id: bookingId, supplemental_bill: supplementalBill } as any;
+      return updated;
     }
   }
 
@@ -945,44 +898,51 @@ export class ApiClient {
     denialReason?: string
   ): Promise<Booking> {
     try {
-      return await this.request<Booking>(`/bookings/${bookingId}/supplemental-bill/respond`, {
+      await this.request<Booking>(`/bookings/${bookingId}/supplemental-bill/respond`, {
         method: 'PATCH',
         body: JSON.stringify({ approved, denial_reason: denialReason }),
       });
     } catch {
-      const b = MOCK_BOOKINGS.find(x => x.id === bookingId);
-      if (b && b.supplemental_bill) {
-        b.supplemental_bill.status = approved ? 'approved' : 'denied';
-        b.supplemental_bill.responded_at = new Date().toISOString();
-        if (!approved && denialReason) {
-          b.supplemental_bill.denial_reason = denialReason;
-        }
-        if (approved) {
-          b.final_amount = (Number(b.estimated_amount) || 0) + b.supplemental_bill.total_amount;
-        }
-        b.updated_at = new Date().toISOString();
-        await this.persistBooking(b);
-
-        // Push real-time confirmation notification to Worker
-        MOCK_NOTIFICATIONS.worker.unshift({
-          id: 'notif-w-' + Date.now(),
-          user_id: b.worker_id,
-          type: 'extra_bill_response',
-          title: approved
-            ? `✅ Additional Work Approved (+₹${b.supplemental_bill.total_amount})`
-            : `❌ Additional Work Declined`,
-          message: approved
-            ? `Customer approved additional repair work for ${b.booking_code}. You may proceed with the additional tasks.`
-            : `Customer declined additional work for ${b.booking_code}. Please proceed with base service only.`,
-          read: false,
-          action_url: `/jobs`,
-          created_at: new Date().toISOString(),
-        });
-
-        return { ...b };
-      }
-      return b as any;
+      // offline fallback
     }
+
+    const b = await DatabaseService.bookings.getById(bookingId);
+    if (b && b.supplemental_bill) {
+      const bill = { ...b.supplemental_bill };
+      bill.status = approved ? 'approved' : 'denied';
+      bill.responded_at = new Date().toISOString();
+      if (!approved && denialReason) {
+        bill.denial_reason = denialReason;
+      }
+      let finalAmt = b.final_amount;
+      if (approved) {
+        finalAmt = (Number(b.estimated_amount) || 0) + bill.total_amount;
+      }
+
+      const updated = await DatabaseService.bookings.update(bookingId, {
+        supplemental_bill: bill,
+        final_amount: finalAmt,
+      });
+
+      // Push real-time confirmation notification to Worker
+      await DatabaseService.notifications.insert({
+        id: 'notif-w-' + Date.now(),
+        user_id: updated.worker_id,
+        type: 'extra_bill_response',
+        title: approved
+          ? `✅ Additional Work Approved (+₹${bill.total_amount})`
+          : `❌ Additional Work Declined`,
+        message: approved
+          ? `Customer approved additional repair work for ${updated.booking_code}. You may proceed with the additional tasks.`
+          : `Customer declined additional work for ${updated.booking_code}. Please proceed with base service only.`,
+        read: false,
+        action_url: `/jobs`,
+        created_at: new Date().toISOString(),
+      }, 'worker');
+
+      return updated;
+    }
+    return b as any;
   }
 
   // --- AI DEMAND FORECASTING ---
@@ -1142,12 +1102,17 @@ export class ApiClient {
     try {
       return await this.request<any>('/stats/admin');
     } catch {
+      const allWorkers = await DatabaseService.workers.getAll();
+      const allBookings = await DatabaseService.bookings.getAll();
+      const completed = allBookings.filter(b => b.status === 'completed');
+      const welfareTotal = completed.reduce((sum, b) => sum + (Number(b.final_amount || b.estimated_amount || 0) * 0.10), 450000);
+
       return {
         ...MOCK_ADMIN_STATS,
-        totalWorkers: MOCK_ADMIN_STATS.totalWorkers,
-        totalBookings: MOCK_ADMIN_STATS.totalBookings,
-        completedJobs: MOCK_ADMIN_STATS.completedJobs,
-        welfareCorpus: MOCK_ADMIN_STATS.welfareCorpus
+        totalWorkers: Math.max(allWorkers.length, MOCK_ADMIN_STATS.totalWorkers),
+        totalBookings: Math.max(allBookings.length, MOCK_ADMIN_STATS.totalBookings),
+        completedJobs: Math.max(completed.length, MOCK_ADMIN_STATS.completedJobs),
+        welfareCorpus: Math.round(welfareTotal)
       };
     }
   }
@@ -1159,15 +1124,20 @@ export class ApiClient {
         method: 'PATCH',
         body: JSON.stringify({ status, notes })
       });
-      return res.data;
+      const updated = res.data;
+      await DatabaseService.workers.update(workerId, updated);
+      return updated;
     } catch {
-      const w = MOCK_WORKERS.find(x => x.id === workerId);
+      const w = await DatabaseService.workers.getById(workerId);
       if (w) {
-        w.verification_status = status;
-        w.verification_notes = notes;
-        w.welfare_status = status === 'verified' ? 'Active Member' : 'Rejected';
-        w.insurance_status = status === 'verified' ? 'PMSBY Active' : 'None';
-        return w;
+        const updates: Partial<Worker> = {
+          verification_status: status,
+          verification_notes: notes,
+          welfare_status: status === 'verified' ? 'Active Member' : 'Rejected',
+          insurance_status: status === 'verified' ? 'PMSBY Active' : 'None',
+        };
+        const updated = await DatabaseService.workers.update(workerId, updates);
+        return updated || ({ ...w, ...updates } as Worker);
       }
       return { id: workerId, verification_status: status } as any;
     }
@@ -1180,9 +1150,7 @@ export class ApiClient {
       const res = await this.request<any>(path);
       return Array.isArray(res) ? res : res.data || [];
     } catch {
-      return workerId
-        ? MOCK_RATINGS.filter(r => r.worker_id === workerId)
-        : MOCK_RATINGS;
+      return DatabaseService.ratings.getAll(workerId);
     }
   }
 
@@ -1195,21 +1163,25 @@ export class ApiClient {
     tags?: string[];
     customer_name?: string;
   }): Promise<Rating> {
+    let resData: any = null;
     try {
       const res = await this.request<any>('/ratings', {
         method: 'POST',
         body: JSON.stringify(data)
       });
-      return res.data;
+      resData = res?.data;
     } catch {
-      const rating: Rating = {
-        id: `r-${Date.now()}`,
-        ...data,
-        created_at: new Date().toISOString()
-      };
-      MOCK_RATINGS.unshift(rating);
-      return rating;
+      // offline/local fallback
     }
+
+    const rating: Rating = resData || {
+      id: `r-${Date.now()}`,
+      ...data,
+      created_at: new Date().toISOString()
+    };
+
+    await DatabaseService.ratings.insert(rating);
+    return rating;
   }
 
   // --- PAYMENTS & INVOICES (85 / 10 / 5 FAIR SPLIT) ---
@@ -1266,42 +1238,47 @@ export class ApiClient {
       created_at: new Date().toISOString()
     };
 
-    // Store/replace in memory MOCK_INVOICES
-    const existingInvIdx = MOCK_INVOICES.findIndex(i => i.booking_id === data.booking_id);
-    if (existingInvIdx >= 0) {
-      MOCK_INVOICES[existingInvIdx] = invoice;
-    } else {
-      MOCK_INVOICES.unshift(invoice);
-    }
+    // 1. Insert & Persist Invoice in DatabaseService
+    await DatabaseService.invoices.insert(invoice);
     await this.persistInvoice(invoice);
 
-    // Mark the booking paid AND completed
-    const b = MOCK_BOOKINGS.find(x => x.id === data.booking_id);
+    // 2. Mark the booking paid AND completed in DatabaseService
+    const b = await DatabaseService.bookings.getById(data.booking_id);
     if (b) {
-      b.payment_status = 'paid';
-      b.status = 'completed';
-      b.final_amount = amt;
-      b.updated_at = new Date().toISOString();
-      await this.persistBooking(b);
+      await DatabaseService.bookings.update(data.booking_id, {
+        payment_status: 'paid',
+        status: 'completed',
+        final_amount: amt,
+        updated_at: new Date().toISOString(),
+      });
+      await this.persistBooking({
+        ...b,
+        payment_status: 'paid',
+        status: 'completed',
+        final_amount: amt,
+        updated_at: new Date().toISOString(),
+      });
       DeviceEventEmitter.emit('app_booking_updated');
     }
 
-    // Automatically reset worker operational duty status back to 'available' if no other active jobs
+    // 3. Record worker job completion & wage in DatabaseService
     const assignedWorkerId = data.worker_id || b?.worker_id;
     if (assignedWorkerId) {
-      const hasOtherActiveJobs = MOCK_BOOKINGS.some(
+      await DatabaseService.workers.recordJobCompleted(assignedWorkerId, workerAmt);
+      const allBk = await DatabaseService.bookings.getAll();
+      const hasOtherActiveJobs = allBk.some(
         bk =>
           (bk.worker_id === assignedWorkerId || (bk.worker as any)?.id === assignedWorkerId) &&
           bk.id !== data.booking_id &&
           (bk.status === 'accepted' || bk.status === 'in_progress')
       );
       if (!hasOtherActiveJobs) {
-        await this.updateWorkerAvailability(assignedWorkerId, 'available');
+        await DatabaseService.workers.updateAvailability(assignedWorkerId, 'available');
       }
     }
 
-    // Push notification to customer
-    MOCK_NOTIFICATIONS.customer.unshift({
+    // 4. Push persistent notification to customer
+    await DatabaseService.notifications.insert({
       id: 'notif-c-' + Date.now(),
       user_id: data.customer_id,
       type: 'payment',
@@ -1312,8 +1289,8 @@ export class ApiClient {
       created_at: new Date().toISOString(),
     });
 
-    // Push notification to worker
-    MOCK_NOTIFICATIONS.worker.unshift({
+    // 5. Push persistent notification to worker
+    await DatabaseService.notifications.insert({
       id: 'notif-w-' + Date.now(),
       user_id: data.worker_id,
       type: 'payment',
@@ -1336,17 +1313,18 @@ export class ApiClient {
       // offline fallback
     }
 
-    const inMem = MOCK_INVOICES.find(i => i.booking_id === bookingId);
-    if (inMem) return inMem;
+    // Query DatabaseService
+    const existing = DatabaseService.invoices.getByBookingId(bookingId);
+    if (existing) return existing;
 
     const stored = await this.restoreInvoice(bookingId);
     if (stored) {
-      MOCK_INVOICES.unshift(stored);
+      await DatabaseService.invoices.insert(stored);
       return stored;
     }
 
-    // Dynamically generate invoice matching the booking total
-    const b = MOCK_BOOKINGS.find(bk => bk.id === bookingId);
+    // Dynamically generate invoice matching the booking total and persist it
+    const b = await DatabaseService.bookings.getById(bookingId);
     if (b) {
       const amt = Number(b.final_amount) || Number(b.estimated_amount) || 0;
       const inv: Invoice = {
@@ -1363,7 +1341,7 @@ export class ApiClient {
         total_amount: amt,
         generated_at: b.updated_at || new Date().toISOString(),
       };
-      MOCK_INVOICES.unshift(inv);
+      await DatabaseService.invoices.insert(inv);
       return inv;
     }
 
@@ -1377,9 +1355,7 @@ export class ApiClient {
       const res = await this.request<any>(path);
       return Array.isArray(res) ? res : res.data || [];
     } catch {
-      return workerId
-        ? MOCK_WELFARE.filter(w => w.worker_id === workerId)
-        : MOCK_WELFARE;
+      return DatabaseService.welfare.getAll(workerId);
     }
   }
 
@@ -1390,117 +1366,28 @@ export class ApiClient {
       const res = await this.request<any>(path);
       return Array.isArray(res) ? res : res.data || [];
     } catch {
-      const id = userId || '';
-      if (id.startsWith('w')) return MOCK_NOTIFICATIONS.worker;
-      if (id.startsWith('admin')) return MOCK_NOTIFICATIONS.admin;
-      if (MOCK_CUSTOMERS.some(c => c.id === id)) return MOCK_NOTIFICATIONS.customer;
-      // Default feed by caller convention: customer profiles are p-ids,
-      // worker profiles are w-ids, admin is admin-demo.
-      if (id.startsWith('p')) return MOCK_NOTIFICATIONS.customer;
-      return MOCK_NOTIFICATIONS.customer;
+      return DatabaseService.notifications.getAll(userId);
     }
   }
 
   public static async markNotificationRead(id: string): Promise<boolean> {
     try {
       await this.request<any>(`/notifications/${id}/read`, { method: 'PATCH' });
+      await DatabaseService.notifications.markRead(id);
       return true;
     } catch {
-      for (const feed of Object.values(MOCK_NOTIFICATIONS)) {
-        const n = feed.find(x => x.id === id);
-        if (n) n.read = true;
-      }
+      await DatabaseService.notifications.markRead(id);
       return true;
     }
   }
 
   // --- CUSTOMER PROFILE ---
-  private static mockCustomerProfiles: Record<string, Profile> = {
-    'p0000000-0000-0000-0000-000000000002': {
-      id: 'p0000000-0000-0000-0000-000000000002',
-      full_name: 'Priya Singh',
-      email: 'priya.singh@customer.in',
-      phone: '+91 98711 54321',
-      role: 'customer',
-      address: 'Flat 402, C-Scheme',
-      city: 'Jaipur',
-      state: 'Rajasthan',
-      pincode: '302001',
-      language: 'en',
-      membership_id: 'COP-CUS-2026-8842',
-      total_spent: 4890,
-      coop_savings: 1450,
-      welfare_contribution: 146,
-      saved_addresses: [
-        {
-          id: 'addr-1',
-          label: 'Home',
-          address: 'Flat 402, C-Scheme',
-          city: 'Jaipur',
-          state: 'Rajasthan',
-          pincode: '302001',
-          is_default: true,
-        },
-        {
-          id: 'addr-2',
-          label: 'Office',
-          address: 'Tower B, World Trade Park, Malviya Nagar',
-          city: 'Jaipur',
-          state: 'Rajasthan',
-          pincode: '302017',
-          is_default: false,
-        },
-      ],
-      emergency_contacts: [
-        {
-          id: 'em-1',
-          name: 'Dr. Alok Singh',
-          phone: '+91 98290 11223',
-          relation: 'Father / Family',
-        },
-      ],
-    },
-  };
-
   public static async getCustomerProfile(customerId = 'p0000000-0000-0000-0000-000000000002'): Promise<Profile> {
     try {
       const res = await this.request<any>(`/customers/${customerId}/profile`);
       return res.data || res;
     } catch {
-      if (this.mockCustomerProfiles[customerId]) {
-        return { ...this.mockCustomerProfiles[customerId] };
-      }
-      const existing = MOCK_CUSTOMERS.find(c => c.id === customerId);
-      if (existing) {
-        this.mockCustomerProfiles[customerId] = {
-          ...existing,
-          membership_id: 'COP-CUS-2026-8842',
-          total_spent: 4890,
-          coop_savings: 1450,
-          welfare_contribution: 146,
-          saved_addresses: [
-            {
-              id: 'addr-default',
-              label: 'Home',
-              address: existing.address || 'Flat 402, C-Scheme',
-              city: existing.city || 'Jaipur',
-              state: existing.state || 'Rajasthan',
-              pincode: existing.pincode || '302001',
-              is_default: true,
-            },
-          ],
-          emergency_contacts: [
-            {
-              id: 'em-default',
-              name: 'Family Helpline',
-              phone: '+91 98290 11223',
-              relation: 'Emergency Contact',
-            },
-          ],
-        };
-        return { ...this.mockCustomerProfiles[customerId] };
-      }
-      return { ...this.mockCustomerProfiles['p0000000-0000-0000-0000-000000000002'] };
+      return DatabaseService.profiles.getCustomerProfile(customerId);
     }
   }
 
@@ -1513,44 +1400,21 @@ export class ApiClient {
         method: 'PATCH',
         body: JSON.stringify(updates),
       });
-      return res.data || res;
+      const updated = res.data || res;
+      await DatabaseService.profiles.updateCustomerProfile(customerId, updates);
+      return updated;
     } catch {
-      const current = await this.getCustomerProfile(customerId);
-      const merged = { ...current, ...updates };
-      this.mockCustomerProfiles[customerId] = merged;
-      // Also update in MOCK_CUSTOMERS array if present
-      const inList = MOCK_CUSTOMERS.find(c => c.id === customerId);
-      if (inList) {
-        Object.assign(inList, updates);
-      }
-      return { ...merged };
+      return await DatabaseService.profiles.updateCustomerProfile(customerId, updates);
     }
   }
 
   // --- ADMIN PROFILE ---
-  private static mockAdminProfile: AdminProfile = {
-    id: 'admin-sec-001',
-    officer_name: 'Dr. Vikramaditya Rathore, IAS (Retd.)',
-    designation: 'Chief Registrar & Commissioner of Cooperatives',
-    department: 'Dept of Cooperatives & Shramik Welfare, Govt of Rajasthan',
-    authority_code: 'SEC-RAJ-COOP-001',
-    state: 'Rajasthan',
-    jurisdiction_districts: 24,
-    affiliated_cooperatives: 128,
-    statutory_minimum_wage: 249,
-    mandatory_certification: true,
-    emergency_mobilization_override: true,
-    patronage_dividend_rate: 12,
-    last_audit_date: '2026-09-01',
-    integrity_hash: '0x8F92A7D1C34E65B901FE',
-  };
-
   public static async getAdminProfile(): Promise<AdminProfile> {
     try {
       const res = await this.request<any>('/admin/profile');
       return res.data || res;
     } catch {
-      return { ...this.mockAdminProfile };
+      return DatabaseService.profiles.getAdminProfile();
     }
   }
 
@@ -1560,10 +1424,11 @@ export class ApiClient {
         method: 'PATCH',
         body: JSON.stringify(updates),
       });
-      return res.data || res;
+      const updated = res.data || res;
+      await DatabaseService.profiles.updateAdminProfile(updates);
+      return updated;
     } catch {
-      this.mockAdminProfile = { ...this.mockAdminProfile, ...updates };
-      return { ...this.mockAdminProfile };
+      return await DatabaseService.profiles.updateAdminProfile(updates);
     }
   }
 }
