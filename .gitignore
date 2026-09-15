@@ -6,3 +6,13 @@ scratch
 Sahakari-Seva-main/scratch
 mobile/scratch
 
+# Temporary test & capture artifacts
+screenshots_*/
+pdf_slides_preview*/
+test_*.png
+test_*.js
+capture_*.js
+debug_tabs.js
+*.log
+
+

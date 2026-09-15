@@ -19,6 +19,7 @@ import { RootNavigator, rootNavigationRef } from './src/navigation/RootNavigator
 import { LanguageSwitchProvider } from './src/animations';
 import { ThemeProvider, useTheme } from './src/theme';
 import { ErrorBoundary } from './src/components/common/ErrorBoundary';
+import { DatabaseService } from './src/services/databaseService';
 
 // Ignore normal offline mock database fallback warnings in Expo Go
 LogBox.ignoreLogs([
@@ -33,6 +34,12 @@ LogBox.ignoreLogs([
 // Reads the active theme to style the status bar and navigation chrome
 const ThemedApp: React.FC = () => {
   const { colors, isDark } = useTheme();
+
+  React.useEffect(() => {
+    DatabaseService.initialize().catch((err) => {
+      console.warn('Database initialization notice:', err);
+    });
+  }, []);
 
   const navTheme = {
     ...(isDark ? NavDarkTheme : DefaultTheme),

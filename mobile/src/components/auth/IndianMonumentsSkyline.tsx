@@ -30,17 +30,17 @@ export const IndianMonumentsSkyline: React.FC<IndianMonumentsSkylineProps> = ({
   width = '100%',
   height,
 }) => {
-  // Theme-aware color tokens
-  const monumentFill = isDark ? '#e2e8f0' : '#475569';
-  const monumentOpacity = isDark ? 0.68 : 0.48;
-  const monumentAccent = isDark ? '#ffffff' : '#1e293b';
-  const monumentAccentOpacity = isDark ? 0.35 : 0.25;
+  // Theme-aware color tokens — architectural etching watermark aesthetic
+  const monumentFill = isDark ? '#94a3b8' : '#475569';
+  const monumentOpacity = isDark ? 0.24 : 0.18;
+  const monumentAccent = isDark ? '#ffffff' : '#0f172a';
+  const monumentAccentOpacity = isDark ? 0.18 : 0.12;
 
-  const chakraStroke = isDark ? '#38bdf8' : '#1e3a8a';
-  const chakraOpacity = isDark ? 0.22 : 0.16;
+  const chakraStroke = isDark ? '#38bdf8' : '#0284c7';
+  const chakraOpacity = isDark ? 0.14 : 0.10;
 
-  const birdFill = isDark ? '#94a3b8' : '#475569';
-  const birdOpacity = isDark ? 0.55 : 0.42;
+  const birdFill = isDark ? '#94a3b8' : '#64748b';
+  const birdOpacity = isDark ? 0.30 : 0.22;
 
   // 24 spokes for the Ashoka Chakra (every 15 degrees)
   const chakraCX = 885;
@@ -59,7 +59,7 @@ export const IndianMonumentsSkyline: React.FC<IndianMonumentsSkylineProps> = ({
   });
 
   return (
-    <View style={[styles.container, height ? { height } : { aspectRatio: 5 / 1 }]}>
+    <View style={[styles.container, height ? { height } : { aspectRatio: 5.2 / 1 }]}>
       <Svg
         viewBox="0 0 1000 200"
         width={width}
@@ -68,36 +68,43 @@ export const IndianMonumentsSkyline: React.FC<IndianMonumentsSkylineProps> = ({
         style={styles.svg}
       >
         <Defs>
-          {/* Subtle gradient illumination on monuments for architectural depth */}
+          {/* Delicate architectural gradient fading out at top and base */}
           <SvgLinearGradient id="monumentGrad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={monumentFill} stopOpacity={monumentOpacity * 0.9} />
-            <Stop offset="75%" stopColor={monumentFill} stopOpacity={monumentOpacity} />
-            <Stop offset="100%" stopColor={monumentFill} stopOpacity={monumentOpacity * 1.15} />
+            <Stop offset="0%" stopColor={monumentFill} stopOpacity={monumentOpacity * 0.4} />
+            <Stop offset="40%" stopColor={monumentFill} stopOpacity={monumentOpacity} />
+            <Stop offset="85%" stopColor={monumentFill} stopOpacity={monumentOpacity * 0.75} />
+            <Stop offset="100%" stopColor={monumentFill} stopOpacity={0.02} />
           </SvgLinearGradient>
 
-          {/* Saffron Ribbon Gradient */}
-          <SvgLinearGradient id="saffronGrad" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0%" stopColor="#FF9933" stopOpacity={1} />
-            <Stop offset="50%" stopColor="#FFAA44" stopOpacity={1} />
-            <Stop offset="100%" stopColor="#FF7700" stopOpacity={1} />
+          {/* Feathered Saffron Horizon Filament */}
+          <SvgLinearGradient id="featheredSaffron" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0%" stopColor="#FF9933" stopOpacity={0} />
+            <Stop offset="15%" stopColor="#FF9933" stopOpacity={0.85} />
+            <Stop offset="50%" stopColor="#FFAA44" stopOpacity={0.95} />
+            <Stop offset="85%" stopColor="#FF7700" stopOpacity={0.85} />
+            <Stop offset="100%" stopColor="#FF7700" stopOpacity={0} />
           </SvgLinearGradient>
 
-          {/* White Ribbon Gradient with luminous sheen */}
-          <SvgLinearGradient id="whiteGrad" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={isDark ? 0.96 : 0.98} />
-            <Stop offset="100%" stopColor={isDark ? '#F1F5F9' : '#E2E8F0'} stopOpacity={isDark ? 0.92 : 0.95} />
+          {/* Feathered White Luminous Horizon Filament */}
+          <SvgLinearGradient id="featheredWhite" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0} />
+            <Stop offset="20%" stopColor="#FFFFFF" stopOpacity={isDark ? 0.85 : 0.95} />
+            <Stop offset="80%" stopColor="#FFFFFF" stopOpacity={isDark ? 0.85 : 0.95} />
+            <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
           </SvgLinearGradient>
 
-          {/* Green Ribbon Gradient */}
-          <SvgLinearGradient id="greenGrad" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0%" stopColor="#138808" stopOpacity={1} />
-            <Stop offset="50%" stopColor="#159C0A" stopOpacity={1} />
-            <Stop offset="100%" stopColor="#0B6B06" stopOpacity={1} />
+          {/* Feathered Green Horizon Filament */}
+          <SvgLinearGradient id="featheredGreen" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0%" stopColor="#138808" stopOpacity={0} />
+            <Stop offset="15%" stopColor="#138808" stopOpacity={0.85} />
+            <Stop offset="50%" stopColor="#159C0A" stopOpacity={0.95} />
+            <Stop offset="85%" stopColor="#0B6B06" stopOpacity={0.85} />
+            <Stop offset="100%" stopColor="#0B6B06" stopOpacity={0} />
           </SvgLinearGradient>
 
-          {/* Soft ambient radial glow behind Taj Mahal */}
-          <RadialGradient id="centerGlow" cx="540" cy="90" r="140" gradientUnits="userSpaceOnUse">
-            <Stop offset="0%" stopColor={isDark ? '#38bdf8' : '#0d9488'} stopOpacity={isDark ? 0.08 : 0.04} />
+          {/* Soft ambient radial glow behind central skyline */}
+          <RadialGradient id="centerGlow" cx="540" cy="110" r="180" gradientUnits="userSpaceOnUse">
+            <Stop offset="0%" stopColor={isDark ? '#38bdf8' : '#0d9488'} stopOpacity={isDark ? 0.08 : 0.05} />
             <Stop offset="100%" stopColor={isDark ? '#38bdf8' : '#0d9488'} stopOpacity={0} />
           </RadialGradient>
         </Defs>
@@ -425,38 +432,31 @@ export const IndianMonumentsSkyline: React.FC<IndianMonumentsSkylineProps> = ({
         </G>
 
         {/* ================================================================= */}
-        {/* --- THE VIBRANT EDGE-TO-EDGE INDIAN TRICOLOR RIBBON WAVE --- */}
+        {/* --- ETHEREAL TRICOLOR HORIZON FILAMENTS (SLENDER & FEATHERED) --- */}
         {/* ================================================================= */}
-        {/* 
-            Smooth undulating 3-stripe wave running full width (0 to 1000).
-            Hugs the base of all monuments and serves as the patriotic ground pedestal.
-        */}
         <G>
-          {/* Top Layer: Vibrant Indian Saffron Ribbon */}
+          {/* Top Saffron Filament */}
           <Path
-            d="M 0 160 C 180 174, 380 152, 600 166 C 750 175, 880 172, 1000 164 L 1000 176 C 880 184, 750 187, 600 178 C 380 164, 180 186, 0 172 Z"
-            fill="url(#saffronGrad)"
+            d="M 20 178 C 200 186, 440 174, 650 180 C 780 184, 880 182, 980 178"
+            fill="none"
+            stroke="url(#featheredSaffron)"
+            strokeWidth={1.6}
           />
 
-          {/* Middle Layer: Luminous Pure White Ribbon */}
+          {/* Middle Luminous White Filament */}
           <Path
-            d="M 0 172 C 180 186, 380 164, 600 178 C 750 187, 880 184, 1000 176 L 1000 187 C 880 195, 750 198, 600 189 C 380 175, 180 197, 0 183 Z"
-            fill="url(#whiteGrad)"
+            d="M 20 180.5 C 200 188.5, 440 176.5, 650 182.5 C 780 186.5, 880 184.5, 980 180.5"
+            fill="none"
+            stroke="url(#featheredWhite)"
+            strokeWidth={1.2}
           />
-          {/* Crisp contrast separator line for light mode visibility */}
-          {!isDark && (
-            <Path
-              d="M 0 172 C 180 186, 380 164, 600 178 C 750 187, 880 184, 1000 176"
-              fill="none"
-              stroke="rgba(0,0,0,0.06)"
-              strokeWidth={0.8}
-            />
-          )}
 
-          {/* Bottom Layer: Rich Indian Green Ribbon */}
+          {/* Bottom Emerald Filament */}
           <Path
-            d="M 0 183 C 180 197, 380 175, 600 189 C 750 198, 880 195, 1000 187 L 1000 200 L 0 200 Z"
-            fill="url(#greenGrad)"
+            d="M 20 183 C 200 191, 440 179, 650 185 C 780 189, 880 187, 980 183"
+            fill="none"
+            stroke="url(#featheredGreen)"
+            strokeWidth={1.6}
           />
         </G>
       </Svg>
@@ -467,11 +467,12 @@ export const IndianMonumentsSkyline: React.FC<IndianMonumentsSkylineProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 380,
     alignItems: 'center',
     justifyContent: 'flex-end',
     overflow: 'hidden',
     alignSelf: 'center',
+    opacity: 0.95,
   },
   svg: {
     width: '100%',

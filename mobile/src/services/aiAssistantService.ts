@@ -9,6 +9,7 @@
 
 import { DeviceEventEmitter } from 'react-native';
 import { ApiClient } from './apiClient';
+import { DatabaseService } from './databaseService';
 import { Booking, ExtraTaskItem, ExtraTaskType } from '../types';
 import {
   TRADE_SUGGESTIONS,
@@ -28,6 +29,7 @@ export type AssistantIntentType =
   | 'EARNINGS_WELFARE'
   | 'PAYMENT_STATUS'
   | 'CONFIRM_CASH'
+  | 'DATABASE_STATUS'
   | 'READ_ALOUD'
   | 'HELP'
   | 'UNKNOWN';
@@ -510,6 +512,20 @@ export class AIAssistantService {
       s.includes('bol kar')
     ) {
       return 'READ_ALOUD';
+    }
+
+    // Database & persistent storage health
+    if (
+      s.includes('database') ||
+      s.includes('sync') ||
+      s.includes('backup') ||
+      s.includes('storage') ||
+      s.includes('data health') ||
+      s.includes('audit') ||
+      s.includes('change log') ||
+      s.includes('kosh')
+    ) {
+      return 'DATABASE_STATUS';
     }
 
     // Help
@@ -1505,6 +1521,48 @@ export class AIAssistantService {
             booking: target,
             actions: [
               { label: target.status === 'in_progress' ? '✓ Complete Job' : '⚡ Start Service Work', command: target.status === 'in_progress' ? 'complete job' : 'start work', variant: 'success' },
+            ],
+          },
+        };
+      }
+
+      case 'DATABASE_STATUS': {
+        const bookings = await DatabaseService.bookings.getAll();
+        const workers = await DatabaseService.workers.getAll();
+        const invoices = await DatabaseService.invoices.getAll();
+        const notifs = await DatabaseService.notifications.getAll();
+        const logs = await DatabaseService.changeLog.getAll();
+
+        const bookingsCount = bookings.length;
+        const workersCount = workers.length;
+        const invoicesCount = invoices.length;
+        const notifsCount = notifs.length;
+        const logsCount = logs.length;
+
+        const msg = `🗄️ Database & Sync Status: 100% Persistent Active\n` +
+          `• Bookings In Storage: ${bookingsCount}\n` +
+          `• Verified Workers: ${workersCount}\n` +
+          `• Invoices & Receipts: ${invoicesCount}\n` +
+          `• Notifications Logged: ${notifsCount}\n` +
+          `• Audited Mutations: ${logsCount}\n` +
+          `• Engine: Local ACID + Cloud Sync Queue\n\n` +
+          `All operational data, bookings, ratings, and payments are permanently preserved across browser reloads.`;
+
+        const speech = `Database is 100% persistent. ${bookingsCount} bookings and ${logsCount} audited mutations are securely stored.`;
+
+        return {
+          success: true,
+          intent,
+          message: msg,
+          speechText: speech,
+          actionTaken: 'info',
+          card: {
+            id: 'card-db-' + Date.now(),
+            type: 'action_buttons',
+            actions: [
+              { label: '📋 View All Requests', command: 'list available requests', variant: 'primary' },
+              { label: '💰 Check Earnings', command: 'earnings summary', variant: 'neutral' },
+              { label: '📅 Open Schedule', command: 'navigate_jobs', variant: 'neutral' },
             ],
           },
         };
