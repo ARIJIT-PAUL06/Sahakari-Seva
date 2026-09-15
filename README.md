@@ -1,117 +1,232 @@
 # Sahakari Seva (सहकारी सेवा / সহকারী সেবা / சகாரி சேவா / సహకారి సేవ / सहकारी सेवा / સહકારી સેવા / ಸಹಕಾರಿ ಸೇವಾ)
 
-> **India's First Worker-Owned Cooperative Platform for Urban & Household Gig Services** — restructured as a **mobile-first application** (Expo SDK 52 / React Native) that runs on **Expo Go** for Android & iOS.
+> **India's First Worker-Owned Cooperative Platform for Urban & Household Gig Services**  
+> Built as an offline-first, mobile-first application using **Expo SDK 52 / React Native (React 19)** with **Supabase Real-Time Cloud Synchronization**, **14-Language Comprehensive Localization**, and **Sovereign Cooperative Trust Architecture**.
 
 ---
 
-## 🌟 Key Highlights
-
-- **📱 True Mobile Application** — Expo SDK 52 / React Native app in `mobile/` with role-based bottom tabs (Customer, Worker, Admin), touch-first UI, native safe areas, GPS matching, and offline demo fallback so *every* screen works even without the backend.
-- **🗣 14-Language Comprehensive Localization** — English + **13 Major Indian languages** (हिन्दी Hindi, বাংলা Bengali, தமிழ் Tamil, తెలుగు Telugu, मराठी Marathi, ગુજરાતી Gujarati, ಕನ್ನಡ Kannada, മലയാളം Malayalam, ਪੰਜਾਬੀ Punjabi, ଓଡ଼ିଆ Odia, অসমীয়া Assamese, اردو Urdu, भोजपुरी Bhojpuri). Covering all major landmark regions across North, South, East, West, Central, and Northeast India. Switching languages swaps **the entire app at once** — tabs, screens, alerts, invoices, admin dashboards — behind a smooth branded cross-fade with **zero glitches**. Your choice persists across restarts.
-- **✨ Unique Classy Animations Everywhere** — reusable animation system (`FadeInView`, `ScalePressable`, `AnimatedNumber`, `PulseView`): staggered entrance sequences on every screen, springy haptic press feedback, count-up earnings/KPI numbers, gentle pulsing emergency banner, and cross-fade screen transitions.
-- **🤖 AI Demand Forecasting & Workforce Allocation** — Ensemble time-series model (weekend surge ×1.55, OLS trend regression, 95% confidence bounds) plus real-time supply–demand balancing with 1-tap standby worker mobilization.
-- **📍 Zero Paid Map APIs** — 100% open-source OpenStreetMap + Haversine geo-matching. Zero Google Maps / Mapbox fees.
-- **💰 Fair-Wage Cooperative Economics** — 85% direct to the worker, 10% to the social-security & welfare corpus, 5% cooperative operations — transparent on every booking and invoice.
-- **🛡 Cooperative Governance** — worker KYC verification queue, ITI/NSDC certification checks, welfare passbook with Ayushman Bharat + PMSBY integration.
+[![Live Web Application](https://img.shields.io/badge/Production-Live%20on%20Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://sahakari-seva-six.vercel.app)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-ARIJIT--PAUL06%2FSahakari--Seva-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ARIJIT-PAUL06/Sahakari-Seva)
+[![Framework](https://img.shields.io/badge/Expo-SDK%2052-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev)
+[![React Native](https://img.shields.io/badge/React%20Native-0.86-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev)
+[![Backend](https://img.shields.io/badge/Cloud%20Database-Supabase%20PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://cvbraoniruzplwxbgzja.supabase.co)
+[![Languages](https://img.shields.io/badge/Localization-14%20Indian%20Languages-FF9933?style=for-the-badge)](#-14-language-comprehensive-localization)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 ---
 
-## 🚀 Quick Start (Expo Go — Android)
+## 🌐 Live Access & Official Links
 
-### 1. Install Expo Go on your Android phone
-Search **"Expo Go"** in the Google Play Store and install it.
+- **🚀 Live Production Web App:** [https://sahakari-seva-six.vercel.app](https://sahakari-seva-six.vercel.app)
+- **💻 Official GitHub Repository:** [https://github.com/ARIJIT-PAUL06/Sahakari-Seva](https://github.com/ARIJIT-PAUL06/Sahakari-Seva)
+- **☁️ Supabase Cloud Backend:** `https://cvbraoniruzplwxbgzja.supabase.co`
 
-### 2. Start the mobile app
+---
+
+## 🌟 Key Highlights & Sovereign Innovations
+
+### 1. 💰 Fair-Wage 85 / 10 / 5 Cooperative Economic Model
+Commercial gig platforms extract 25% to 35% commission fees from informal workers. Sahakari Seva replaces extraction with cooperative solidarity:
+- **85% Direct Worker Earnings:** Paid transparently on job completion.
+- **10% Worker Welfare & Social Security Fund:** Held in an audited cooperative passbook funding Ayushman Bharat PM-JAY health insurance, Pradhan Mantri Suraksha Bima Yojana (PMSBY) accidental cover, and retirement corpus.
+- **5% Cooperative Platform Operations:** Covers shared cloud infrastructure and federation administration.
+
+### 2. ☁️ Real-Time Two-Way Supabase Cloud Synchronization
+- **Cross-Device State Persistence:** Changes made on any device (e.g. customer booking a service on a smartphone or an admin approving KYC on a desktop browser) replicate instantly across all connected sessions via Supabase PostgreSQL.
+- **Offline-First Resilience:** Backed by local `AsyncStorage` delta caching. The application works flawlessly in zero-connectivity rural and basement environments, auto-synchronizing changes once a connection is detected.
+- **Deterministic Conflict Resolution:** Automatically merges changes via ISO `updated_at` timestamps.
+- **Diagnostic Health Modal:** Real-time database latency, round-trip ping, pending sync queue, and connection status are inspectable from the app header or Customer Universal Search.
+
+### 3. 🛡 Sovereign Cooperative Trust Architecture & Redesigned Login
+- **Ministry of Cooperation & MSDE Alignment:** Officially aligned with the national cooperative registry.
+- **The Three Cooperative Pillars:**
+  1. **100% ITI & Skill India Certified:** Verified trade credentials, background checks, and apprentice vetting.
+  2. **24/7 Cooperative Ombudsman:** Peer-governed worker-customer dispute tribunal with zero algorithmic deactivations.
+  3. **Welfare Safety Net:** Statutory health, pension, and emergency social security.
+- **Ethereal Architectural Horizon:** Redesigned sovereign login screen featuring watermarked silhouettes of iconic Indian monuments (*India Gate, Taj Mahal, Qutub Minar, Red Fort, Lotus Temple*) and a slender feathered tricolor horizon (*Saffron, Ashoka White, India Green*).
+
+### 4. 🗣 14-Language Comprehensive Localization
+English plus **13 Major Indian regional languages**, covering all cultural and demographic zones across North, South, East, West, Central, and Northeast India.
+- Swaps all tabs, screens, alerts, invoices, and modals instantaneously.
+- Zero text jumps or layout clipping via `LanguageSwitchProvider`.
+- Choice persists across app restarts and cloud synchronizations.
+
+### 5. 🤝 Dual Sign-Off & "Pay on Completion" Lifecycle
+- **Customer Protection:** Customers only release payment after the service is completed to their satisfaction.
+- **Dual Verification:** The worker triggers completion with an optional completion checklist and job photo. The customer verifies with a secure 4-digit verification code or one-tap approval.
+- **Flexible Post-Completion Checkout:** Customers can settle via UPI, Card, Netbanking, or Cash-on-Completion.
+
+### 6. 📌 Dual-Registration Rule: Worker AI & Universal Search
+Every feature in Sahakari Seva is natively accessible through both:
+- **Worker AI Voice & Text Assistant:** Multilingual intent engine for job acceptance, distance estimates, fair-rate calculations, standby mobilization, and emergency SOS.
+- **Customer Universal Search Engine:** One-tap action directory (`ACTIONS_DIRECTORY`) indexing all services, payment actions, passbook checks, and emergency tools with fuzzy keyword search.
+
+---
+
+## 🌐 14-Language Comprehensive Localization
+
+| # | Language | Native Script | Script Family | Geographic & Demographic Coverage |
+|:---:|:---|:---|:---|:---|
+| 1 | **English** | English | Latin | Pan-India / International / Platform Default |
+| 2 | **Hindi** | हिन्दी | Devanagari | North & Central India (Delhi, UP, MP, Rajasthan, Haryana, Bihar) |
+| 3 | **Bengali** | বাংলা | Eastern Nagari | East & Northeast (West Bengal, Kolkata, Tripura, Barak Valley) |
+| 4 | **Tamil** | தமிழ் | Tamil | South India & Diaspora (Tamil Nadu, Chennai, Puducherry) |
+| 5 | **Telugu** | తెలుగు | Telugu | South India (Andhra Pradesh, Telangana, Hyderabad) |
+| 6 | **Marathi** | मराठी | Devanagari | Western India (Maharashtra, Mumbai, Pune, Nagpur) |
+| 7 | **Gujarati** | ગુજરાતી | Gujarati | Western India (Gujarat, Ahmedabad, Surat, Vadodara) |
+| 8 | **Kannada** | ಕನ್ನಡ | Kannada | South India (Karnataka, Bengaluru, Mysuru, Hubballi) |
+| 9 | **Malayalam** | മലയാളം | Malayalam | South India (Kerala, Kochi, Thiruvananthapuram, Kozhikode) |
+| 10 | **Punjabi** | ਪੰਜਾਬੀ | Gurmukhi | North & Northwest (Punjab, Chandigarh, Amritsar, Delhi NCR) |
+| 11 | **Odia** | ଓଡ଼ିଆ | Odia | Eastern India (Odisha, Bhubaneswar, Cuttack, Rourkela) |
+| 12 | **Assamese** | অসমীয়া | Assamese | Northeast India (Assam, Guwahati, Brahmaputra Valley) |
+| 13 | **Urdu** | اردو | Perso-Arabic (Nastaliq) | Pan-India (Delhi, Hyderabad, Lucknow, Jammu & Kashmir) |
+| 14 | **Bhojpuri** | भोजपुरी | Devanagari | Heartland Informal Workforce (Purvanchal UP, Bihar, Jharkhand) |
+
+---
+
+## 📱 Role-Based Screens & Capabilities
+
+```
+                       ┌─────────────────────────────────────┐
+                       │     Sahakari Seva Multi-Role Hub     │
+                       └──────────────────┬──────────────────┘
+                                          │
+         ┌────────────────────────────────┼────────────────────────────────┐
+         │                                │                                │
+┌────────▼────────┐              ┌────────▼────────┐              ┌────────▼────────┐
+│  CUSTOMER ROLE  │              │   WORKER ROLE   │              │   ADMIN ROLE    │
+├─────────────────┤              ├─────────────────┤              ├─────────────────┤
+│ • Universal     │              │ • Real-time Job │              │ • Cooperative   │
+│   Action Search │              │   Dispatching   │              │   KPI Dashboard │
+│ • 85/10/5 Fair  │              │ • Work Diary &  │              │ • ITI & KYC     │
+│   Wage Pricing  │              │   Dual Sign-Off │              │   Verification  │
+│ • OSM Map Radar │              │ • Multilingual  │              │ • AI Demand     │
+│ • Pay on        │              │   Voice AI      │              │   Forecasting   │
+│   Completion    │              │ • Social Welfare│              │ • Standby       │
+│ • Tax Invoices  │              │   Passbook      │              │   Mobilization  │
+└─────────────────┘              └─────────────────┘              └─────────────────┘
+```
+
+### 👤 Customer Experience
+- **Home:** Animated category grid, emergency 1-tap SOS trigger, nearby verified artisans, and transparent 85/10/5 breakdown banner.
+- **Universal Search:** Instant-search bar with fuzzy keyword indexing, recent searches, and direct shortcut actions.
+- **Interactive Map:** High-performance OpenStreetMap radar with radius perimeters, real-time worker pins, and zero paid map APIs.
+- **Worker Details:** Verified ITI trade badges, artisan years of experience, customer reviews, and cooperative member ID.
+- **Booking & Checkout:** Upfront wage split calculation, emergency dispatch option, pay-on-completion guarantee, and instant invoice download.
+
+### 🛠 Worker Experience
+- **Dashboard:** Real-time earnings tally, accumulated welfare balance, live availability toggle, and quick standby dispatch.
+- **Job Lifecycle:** Interactive workflow with clear milestones (`Accepted` → `En Route` → `In Progress` → `Sign-off Requested` → `Completed`).
+- **Worker AI Voice Assistant:** Voice-enabled assistant to manage bookings, check rates, review welfare benefits, and verify DB sync status.
+- **Social Security Passbook:** Digital passbook reflecting every contribution to Ayushman Bharat, PMSBY, and the cooperative pension fund.
+- **Digital Cooperative ID:** Cryptographically verifiable digital ID card with QR code, trade certifications, and federation chapter info.
+
+### 🏛 Admin & Cooperative Federation
+- **Federation KPI Grid:** Active workers, total hours delivered, welfare corpus valuation, and real-time transaction volume.
+- **KYC & Certification Desk:** Multi-stage verification queue for Government ID, ITI marksheets, and police clearance certificates.
+- **AI Demand Forecasting:** Multi-variable time-series regression predicting trade demand curves with weekend surge factors.
+- **Dynamic Standby Mobilization:** Real-time geographic deficit detection and 1-tap incentive-based worker mobilization.
+
+---
+
+## 🧱 Architecture & Codebase Layout
+
+```
+Sahakari-Seva-main/
+├── README.md                      # Workspace & project documentation
+├── AGENTS.md                      # Developer guidelines & dual-registration rules
+├── package.json                   # Root workspace scripts (Web, Android, iOS)
+├── vercel.json                    # Production Vercel SPA deployment configuration
+├── .env.local                     # Supabase cloud credentials
+├── mobile/                        # NTFS junction pointing to Sahakari-Seva-main/
+└── Sahakari-Seva-main/            # Primary Expo SDK 52 React Native Application
+    ├── App.tsx                    # Root component with LanguageSwitchProvider
+    ├── package.json               # Mobile dependencies & Expo configurations
+    ├── app.json                   # Expo application metadata & splash config
+    ├── src/
+    │   ├── animations/            # Smooth motion primitives & LanguageSwitchProvider
+    │   ├── components/
+    │   │   ├── common/            # Header, LanguageModal, WorkerCard, DatabaseSyncModal
+    │   │   ├── worker/            # WorkerAIAssistantWidget, WorkerIDModal
+    │   │   ├── map/               # MobileMapView (OpenStreetMap + Haversine)
+    │   │   └── ui/                # Buttons, Input, Badges, Tabs
+    │   ├── i18n/                  # 14 complete JSON locale dictionaries (en, hi, bn...)
+    │   ├── navigation/            # Role-based Tab & Stack navigation (RootNavigator)
+    │   ├── screens/
+    │   │   ├── auth/              # Sovereign LoginScreen with Monument Watermarks
+    │   │   ├── customer/          # HomeScreen, WorkerSearchScreen, Bookings, Checkout
+    │   │   ├── worker/            # WorkerHomeScreen, JobManagement, WelfarePassbook
+    │   │   └── admin/             # AdminDashboardScreen, KYCVerificationScreen
+    │   ├── services/
+    │   │   ├── cloudSyncAdapter.ts# Supabase real-time delta synchronization
+    │   │   ├── databaseService.ts # Local AsyncStorage + Cloud hybrid persistence
+    │   │   ├── aiAssistantService.ts # Multilingual Worker AI intent classification
+    │   │   ├── apiClient.ts       # Unified API client with automatic offline fallback
+    │   │   └── gpsService.ts      # OpenStreetMap geocoding & Haversine distance
+    │   └── theme/                 # Cooperative design tokens, HSL colors, typography
+    └── revert_backup/             # Safe fallback snapshots for UI components
+```
+
+---
+
+## 🚀 Quick Start Guide
+
+### Prerequisites
+- **Node.js** >= 18.0.0
+- **npm** >= 9.0.0
+- **Expo Go** app installed on your Android / iOS phone (for mobile preview)
+
+### 1. Clone the Repository
 ```bash
-cd mobile
-npm install
+git clone https://github.com/ARIJIT-PAUL06/Sahakari-Seva.git
+cd Sahakari-Seva
+```
+
+### 2. Environment Configuration
+Create a `.env.local` file in both the root and `Sahakari-Seva-main/` directories:
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://cvbraoniruzplwxbgzja.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_nGQOmXn-_7FD0w4dMwbvgg_6KGkPR0X
+```
+
+### 3. Run Locally in Web Browser
+```bash
+npm run dev
+# Or run explicitly:
+npm run web
+```
+The application will bundle and open at `http://localhost:8081` (or next open port).
+
+### 4. Run on Mobile (Android & iOS via Expo Go)
+```bash
 npm start
 ```
+1. Open the **Expo Go** app on your phone.
+2. Ensure your phone and computer are connected to the same Wi-Fi network.
+3. Scan the QR code displayed in the terminal.
+4. The application will bundle and run natively with zero compilation delays!
 
-### 3. Connect
-Put your phone and computer on the **same Wi-Fi**, open **Expo Go**, tap **"Scan QR code"**, and scan the QR shown in the terminal. The app bundles and opens in seconds. No Android Studio, no APK, no build required.
-
-> **Detailed step-by-step guide:** [`docs/EXPO_GO_SETUP.md`](docs/EXPO_GO_SETUP.md) — includes Tunnel mode, LAN troubleshooting, and connecting the live backend API (`EXPO_PUBLIC_API_URL=http://<computer-ip>:5001`).
-
-### 4. Optional — Backend API (port 5001)
+### 5. Build for Production Web
 ```bash
-cd backend
-npm install
-npm run dev
+npm run build:web
 ```
-Without the backend the app automatically falls back to built-in demo data — every feature still works.
+The optimized production bundle will be exported to the `dist/` directory ready for deployment on Vercel or any static host.
 
----
-
-## 🌐 Language Switching (13 Indian Languages + English)
- 
-| Language | Native | Script | Landmark Region Coverage |
-|---|---|---|---|
-| English | English | Latin | Pan-India / Default Platform |
-| Hindi | हिन्दी | Devanagari | North & Central India (Delhi, UP, MP, Rajasthan, Bihar) |
-| Bengali | বাংলা | Bengali | East India (West Bengal, Kolkata, Tripura) |
-| Tamil | தமிழ் | Tamil | South India (Tamil Nadu, Chennai) |
-| Telugu | తెలుగు | Telugu | South India (Andhra Pradesh, Telangana, Hyderabad) |
-| Marathi | मराठी | Devanagari | West India (Maharashtra, Mumbai, Pune) |
-| Gujarati | ગુજરાતી | Gujarati | West India (Gujarat, Ahmedabad, Surat) |
-| Kannada | ಕನ್ನಡ | Kannada | South India (Karnataka, Bengaluru) |
-| Malayalam | മലയാളം | Malayalam | South India (Kerala, Kochi, Thiruvananthapuram) |
-| Punjabi | ਪੰਜਾਬੀ | Gurmukhi | North/North-West (Punjab, Chandigarh, Delhi NCR) |
-| Odia | ଓଡ଼ିଆ | Odia | East India (Odisha, Bhubaneswar, Cuttack) |
-| Assamese | অসমীয়া | Bengali-Assamese | Northeast India (Assam, Guwahati & Seven Sisters) |
-| Urdu | اردو | Perso-Arabic | Pan-India / North / J&K / Hyderabad / Lucknow |
-| Bhojpuri | भोजपुरी | Devanagari | Heartland Gig Workforce (Bihar, Purvanchal UP, Jharkhand) |
-
-Tap the **🌐 chip** in any header to open the language picker. The switch is
-orchestrated by `LanguageSwitchProvider` (`mobile/src/animations/`) — a
-branded overlay cross-fades in (140 ms), i18next swaps all ~300 UI strings in a
-single render, then the overlay fades out (280 ms). **No text jumps, no
-partial translation, ever.** The selected language is saved with
-AsyncStorage and restored on launch.
-
----
-
-## 📱 Mobile App Screens & Flows
-
-| Role | Screens & Capabilities |
-|---|---|
-| **Customer** | **Home**: animated category grid, pulsing emergency trigger, nearby highlights, 85/10/5 fair-split banner.<br>**Search**: trade chips (localized), rating & emergency filters, Haversine ranking.<br>**Map**: fullscreen OpenStreetMap with radius perimeter and worker pins.<br>**Detail**: worker background, verified ITI certificates, reviews, cooperative affiliation.<br>**Booking**: transparent wage-split breakdown, emergency dispatch toggle, instant confirmation.<br>**Invoice**: official cooperative tax receipt with 85/10/5 distribution & share. |
-| **Worker** | **Dashboard**: count-up direct earnings, welfare corpus, live availability toggle.<br>**Jobs**: active task lifecycle (Accept → Start → Complete) with emergency badges.<br>**Welfare**: social-security passbook (Ayushman Bharat, PMSBY, cooperative pension).<br>**Credentials**: cooperative digital ID card, trade profile editor, certification upload.<br>**GPS & Radius**: live GPS sync, address resolution, service radius picker, privacy notice. |
-| **Admin** | **Federation**: KPI grid with animated counters & welfare corpus.<br>**Verify KYC**: pending/verified queue with approve/reject workflows.<br>**AI Forecast**: 7-day demand curve, weekend surge (+55%), confidence bounds, cold-start fallback.<br>**Allocation**: live supply-demand clusters with 1-tap standby mobilization. |
-
----
-
-## 🧱 Architecture
-
-```
-mobile/            → Expo SDK 52 React Native app (primary deliverable)
-  src/animations/  → FadeInView, ScalePressable, AnimatedNumber, PulseView,
-                     LanguageSwitchProvider (glitch-free whole-app switching)
-  src/i18n/        → 8 complete locales (en, hi, bn, ta, te, mr, gu, kn)
-  src/screens/     → auth / customer / worker / admin role flows
-  src/components/  → ui, common (Header, modals, WorkerCard), map
-  src/services/    → ApiClient (auto LAN host detection + offline fallback), GPS
-  src/theme/       → design tokens (colors, spacing, typography, radii, shadows)
-backend/           → Express 5 + TypeScript REST API (port 5001)
-docs/              → EXPO_GO_SETUP.md + architecture, API & ML documentation
+### 6. TypeScript Type Checking
+```bash
+npm run typecheck
 ```
 
 ---
 
-## 📚 Documentation
+## 🔒 Security & Data Sovereignty
 
-| Guide | Description |
-|---|---|
-| [`docs/EXPO_GO_SETUP.md`](docs/EXPO_GO_SETUP.md) | **Run on Android via Expo Go** — step-by-step, QR scanning, Tunnel mode, backend hookup, troubleshooting |
-| [`docs/MOBILE_ARCHITECTURE.md`](docs/MOBILE_ARCHITECTURE.md) | Mobile navigation, touch targets, offline-resilient architecture |
-| [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) | Complete REST API reference |
-| [`docs/ML_FORECASTING.md`](docs/ML_FORECASTING.md) | Time-series OLS regression, EMA smoothing, surge multipliers |
-| [`docs/GEOLOCATION_MATCHING.md`](docs/GEOLOCATION_MATCHING.md) | Haversine engine, 5-factor scoring, privacy masking |
-| [`docs/WORKFORCE_ALLOCATION.md`](docs/WORKFORCE_ALLOCATION.md) | Supply-demand balancing and mobilization |
-| [`docs/INTERNATIONALIZATION.md`](docs/INTERNATIONALIZATION.md) | Localization architecture |
+- **Zero Third-Party Ad Trackers:** No Google Analytics, no Facebook SDK, no commercial telemetry.
+- **Granular Geolocation Privacy:** Customer coordinates are approximate until a worker is formally dispatched. Exact addresses are never exposed to unassigned workers.
+- **Row-Level Security (RLS) Ready:** Supabase PostgreSQL policies isolate customer booking records, worker KYC documents, and financial transactions.
 
 ---
 
-## ⚖️ License & Cooperative Ethics
+## ⚖️ Open Source & Cooperative Commons
 
-Sahakari Seva is developed under the MIT License for open-source cooperative public goods. Dedicated to the dignity of informal gig labor and digital sovereignty for worker cooperatives.
+Sahakari Seva is developed under the **MIT License** as an open-source digital public good. Dedicated to the dignity of informal gig labor, worker-owned cooperative federation, and economic justice across India.
