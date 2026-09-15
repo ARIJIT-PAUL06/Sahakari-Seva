@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "typecheck": "node --stack-size=8192 ./node_modules/typescript/bin/tsc --noEmit",
     "build": "expo export -p web",
-    "build:web": "expo export -p web",
+    "build:web": "expo export -p web && node postbuild.js",
     "build:apk": "eas build -p android --profile preview",
     "build:aab": "eas build -p android --profile production",
     "eas-build-pre-install": "npm config set legacy-peer-deps true"
