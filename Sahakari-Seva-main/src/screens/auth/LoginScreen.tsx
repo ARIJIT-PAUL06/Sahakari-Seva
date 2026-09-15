@@ -960,110 +960,123 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSelectRole }) => {
         </View>
 
         {/* ================================================================= */}
-        {/* INDIAN MONUMENTS SKYLINE & TRICOLOR GROUND WAVE AT BASE           */}
+        {/* INDIAN MONUMENTS SKYLINE & TRICOLOR GROUND HORIZON                */}
         {/* ================================================================= */}
         <View style={styles.monumentsSkylineWrap}>
           <IndianMonumentsSkyline isDark={isDark} />
         </View>
 
         {/* ================================================================= */}
-        {/* BOTTOM INSTITUTIONAL FOOTER & PRESERVED COOPERATIVE SLOGANS       */}
+        {/* BOTTOM SOVEREIGN INSTITUTIONAL TRUST CARD & FOOTER                */}
         {/* ================================================================= */}
         <View style={styles.bottomFooterWrap}>
-          {/* Institutional Compliance & Assistance Row */}
-          <View style={styles.footerInstitutionalRow}>
-            {/* Help & Grievance */}
-            <View style={styles.footerCol}>
-              <View style={styles.footerColTitleRow}>
-                <QuestionCircleIcon color={isDark ? '#2dd4bf' : '#0d9488'} />
-                <Text style={styles.footerColTitle} numberOfLines={1}>Help</Text>
-              </View>
+          {/* Sovereign Cooperative Trust Card */}
+          <View style={styles.trustCard}>
+            {/* Ministry Recognition Seal / Top Pill */}
+            <View style={styles.trustHeaderBadge}>
+              <Text style={styles.trustBadgeEmblem}>🏛️</Text>
+              <Text style={styles.trustBadgeText}>
+                Ministry of Cooperation Recognized Model
+              </Text>
+            </View>
+
+            {/* 3 Core Sovereign Trust Pillars */}
+            <View style={styles.trustPillarsRow}>
+              {/* Pillar 1: 100% Verified */}
+              <TouchableOpacity
+                style={styles.trustPillar}
+                onPress={() => Alert.alert('100% ITI Verified', 'Every cooperative service professional is skill-tested, police-verified, and holds registered national ITI/MSDE certification.')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.trustIconWrap, { backgroundColor: isDark ? 'rgba(45, 212, 191, 0.12)' : 'rgba(13, 148, 136, 0.08)' }]}>
+                  <ShieldCheck size={14} color={isDark ? '#2dd4bf' : '#0d9488'} />
+                </View>
+                <Text style={styles.trustPillarTitle}>100% Verified</Text>
+                <Text style={styles.trustPillarSub}>Police & ITI Checked</Text>
+              </TouchableOpacity>
+
+              {/* Pillar 2: Ombudsman Redressal */}
+              <TouchableOpacity
+                style={styles.trustPillar}
+                onPress={() => Alert.alert('24/7 Ombudsman', 'Cooperative Ombudsman Portal with rapid dispute resolution governed by the Multi-State Cooperative Societies Act.\nToll-Free Helpline: 1800-724-2527\nAverage resolution time: under 4 hours.')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.trustIconWrap, { backgroundColor: isDark ? 'rgba(56, 189, 248, 0.12)' : 'rgba(2, 132, 199, 0.08)' }]}>
+                  <CheckCircle2 size={14} color={isDark ? '#38bdf8' : '#0284c7'} />
+                </View>
+                <Text style={styles.trustPillarTitle}>24/7 Ombudsman</Text>
+                <Text style={styles.trustPillarSub}>Fair Grievance Cell</Text>
+              </TouchableOpacity>
+
+              {/* Pillar 3: Worker Welfare & Insurance */}
+              <TouchableOpacity
+                style={styles.trustPillar}
+                onPress={() => Alert.alert('Sovereign Safety Net', '₹5,00,000 accidental insurance coverage, pension micro-savings, and healthcare cooperative welfare safety net.')}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.trustIconWrap, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : 'rgba(217, 119, 6, 0.08)' }]}>
+                  <Users size={14} color={isDark ? '#f59e0b' : '#d97706'} />
+                </View>
+                <Text style={styles.trustPillarTitle}>₹5L Insurance</Text>
+                <Text style={styles.trustPillarSub}>Worker Safety Net</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Subtle Divider */}
+            <View style={styles.trustDivider} />
+
+            {/* Spacious, Accessible Institutional Navigation Links */}
+            <View style={styles.footerLinksBar}>
               <TouchableOpacity
                 onPress={() => Alert.alert('Help & Grievance', '24/7 Cooperative Ombudsman Portal.\nToll-Free Helpline: 1800-724-2527\nAverage resolution time: under 4 hours.')}
+                style={styles.footerLinkTouch}
                 activeOpacity={0.7}
-                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.footerLinkText} numberOfLines={1}>Grievance</Text>
+                <Text style={styles.footerLinkMain}>Help & Grievance</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => Alert.alert('Dispute Resolution', 'Cooperative dispute resolution is governed by the Multi-State Cooperative Societies Act.')}
-                activeOpacity={0.7}
-                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
-              >
-                <Text style={styles.footerSubLinkText} numberOfLines={1}>Resolution</Text>
-              </TouchableOpacity>
-            </View>
 
-            {/* Terms & Privacy */}
-            <View style={styles.footerCol}>
-              <View style={styles.footerColTitleRow}>
-                <FileText size={10} color={isDark ? '#2dd4bf' : '#0d9488'} />
-                <Text style={styles.footerColTitle} numberOfLines={1}>Legal</Text>
-              </View>
+              <Text style={styles.footerLinkDot}>•</Text>
+
               <TouchableOpacity
                 onPress={() => Alert.alert('Privacy Policy', 'Your personal and payment data is secured under cooperative sovereign data privacy principles.')}
+                style={styles.footerLinkTouch}
                 activeOpacity={0.7}
-                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.footerLinkText} numberOfLines={1}>Privacy</Text>
+                <Text style={styles.footerLinkMain}>Privacy Policy</Text>
               </TouchableOpacity>
+
+              <Text style={styles.footerLinkDot}>•</Text>
+
               <TouchableOpacity
                 onPress={() => Alert.alert('Terms of Service', 'Sahakari Seva is a registered multi-state cooperative federation.')}
+                style={styles.footerLinkTouch}
                 activeOpacity={0.7}
-                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.footerSubLinkText} numberOfLines={1}>Terms</Text>
+                <Text style={styles.footerLinkMain}>Terms of Service</Text>
               </TouchableOpacity>
-            </View>
 
-            {/* Safety Guidelines */}
-            <View style={styles.footerCol}>
-              <View style={styles.footerColTitleRow}>
-                <ShieldCheck size={10} color={isDark ? '#2dd4bf' : '#0d9488'} />
-                <Text style={styles.footerColTitle} numberOfLines={1}>Safety</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => Alert.alert('Safety Guidelines', '100% ITI-verified workers with police verification, live GPS radar tracking, and ₹5,00,000 accidental insurance coverage.')}
-                activeOpacity={0.7}
-                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
-              >
-                <Text style={styles.footerSubLinkText} numberOfLines={1}>Verified</Text>
-              </TouchableOpacity>
-            </View>
+              <Text style={styles.footerLinkDot}>•</Text>
 
-            {/* Accessibility */}
-            <View style={styles.footerCol}>
-              <View style={styles.footerColTitleRow}>
-                <Accessibility size={10} color={isDark ? '#2dd4bf' : '#0d9488'} />
-                <Text style={styles.footerColTitle} numberOfLines={1}>A11y</Text>
-              </View>
               <TouchableOpacity
                 onPress={() => Alert.alert('Accessibility', 'Full WCAG 2.1 compliance with screen reader support, high-contrast themes, and 13 Indian regional languages.')}
+                style={styles.footerLinkTouch}
                 activeOpacity={0.7}
-                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
               >
-                <Text style={styles.footerSubLinkText} numberOfLines={1}>WCAG 2.1</Text>
+                <Text style={styles.footerLinkMain}>A11y (WCAG 2.1)</Text>
               </TouchableOpacity>
-            </View>
-
-            {/* Platform Metadata */}
-            <View style={[styles.footerCol, { alignItems: 'flex-end' }]}>
-              <Text style={styles.footerMetaLabel} numberOfLines={1}>Updated:</Text>
-              <Text style={styles.footerMetaValue} numberOfLines={1}>Sep 2026</Text>
-              <Text style={styles.footerMetaVersion} numberOfLines={1}>v1.0.0</Text>
             </View>
           </View>
 
-          {/* Preserved Original Bottom Slogans */}
+          {/* Slogans & Institutional Signature */}
           <View style={styles.footerContent}>
             <Text style={styles.footerSlogan}>
               Seva  •  Samman  •  Samriddhi
             </Text>
             <Text style={styles.footerHindi}>
-              सेवा • सम्मान • समृद्धि
+              सेवा  •  सम्मान  •  समृद्धि
             </Text>
-            <Text style={styles.footerMinistry}>
-              🏛️ Ministry of Cooperation Recognized Cooperative Model
+            <Text style={styles.footerMetaFootnote}>
+              Govt. of India Multi-State Cooperative Society Framework • v1.0.0 (Updated Sep 2026)
             </Text>
           </View>
         </View>
@@ -1757,103 +1770,147 @@ const createStyles = (isDark: boolean) => StyleSheet.create({
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
-  // --- Monuments Skyline & Base Tricolor Wave ---
+  // --- Monuments Skyline & Base Tricolor Horizon ---
   monumentsSkylineWrap: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 380,
     alignSelf: 'center',
-    marginTop: 8,
-    marginBottom: 0,
+    marginTop: 14,
+    marginBottom: -4,
     overflow: 'hidden',
   },
-  // --- Institutional Footer & Preserved Bottom Slogans ---
+  // --- Institutional Footer & Sovereign Trust Card ---
   bottomFooterWrap: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 380,
     alignSelf: 'center',
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 16,
     overflow: 'hidden',
   },
-  footerInstitutionalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  trustCard: {
     width: '100%',
-    maxWidth: 360,
-    paddingHorizontal: 2,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
-    overflow: 'hidden',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.70)' : 'rgba(255, 255, 255, 0.88)',
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: isDark ? 0.3 : 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  footerCol: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'flex-start',
-    paddingHorizontal: 1,
-    overflow: 'hidden',
-  },
-  footerColTitleRow: {
+  trustHeaderBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3.5,
-    marginBottom: 2,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    backgroundColor: isDark ? 'rgba(45, 212, 191, 0.08)' : 'rgba(13, 148, 136, 0.06)',
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(45, 212, 191, 0.20)' : 'rgba(13, 148, 136, 0.15)',
+    marginBottom: 10,
   },
-  footerColTitle: {
-    fontSize: 10.2,
+  trustBadgeEmblem: {
+    fontSize: 12,
+  },
+  trustBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: isDark ? '#2dd4bf' : '#0d9488',
+    letterSpacing: 0.2,
+  },
+  trustPillarsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    width: '100%',
+    gap: 6,
+  },
+  trustPillar: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(241, 245, 249, 0.65)',
+  },
+  trustIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 5,
+  },
+  trustPillarTitle: {
+    fontSize: 10.5,
     fontWeight: '700',
     color: isDark ? '#f1f5f9' : '#0f172a',
+    textAlign: 'center',
   },
-  footerLinkText: {
-    fontSize: 9.5,
-    fontWeight: '600',
-    color: isDark ? '#2dd4bf' : '#0d9488',
-    marginTop: 1,
-  },
-  footerSubLinkText: {
-    fontSize: 9.2,
+  trustPillarSub: {
+    fontSize: 8.8,
     fontWeight: '500',
     color: isDark ? '#94a3b8' : '#64748b',
+    textAlign: 'center',
     marginTop: 1.5,
   },
-  footerMetaLabel: {
-    fontSize: 8.8,
-    color: isDark ? '#64748b' : '#94a3b8',
-    fontWeight: '500',
+  trustDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.05)',
+    marginVertical: 10,
   },
-  footerMetaValue: {
-    fontSize: 9.2,
+  footerLinksBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  footerLinkTouch: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  footerLinkMain: {
+    fontSize: 10.5,
     fontWeight: '600',
-    color: isDark ? '#cbd5e1' : '#334155',
-    marginTop: 0.5,
+    color: isDark ? '#cbd5e1' : '#475569',
   },
-  footerMetaVersion: {
+  footerLinkDot: {
     fontSize: 9,
-    fontWeight: '700',
-    color: isDark ? '#2dd4bf' : '#0d9488',
-    marginTop: 1,
+    color: isDark ? '#64748b' : '#94a3b8',
   },
   footerContent: {
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
   footerSlogan: {
     fontSize: 12.5,
     fontWeight: '800',
     color: isDark ? '#f8fafc' : '#1e293b',
-    letterSpacing: 0.8,
+    letterSpacing: 1.2,
   },
   footerHindi: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: isDark ? '#cbd5e1' : '#64748b',
+    color: isDark ? '#94a3b8' : '#64748b',
     marginTop: 2,
+    letterSpacing: 0.5,
   },
-  footerMinistry: {
-    fontSize: 9.5,
+  footerMetaFootnote: {
+    fontSize: 9,
+    fontWeight: '500',
     color: isDark ? '#64748b' : '#94a3b8',
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'center',
   },
   // --- Scroll to explore CTA ---

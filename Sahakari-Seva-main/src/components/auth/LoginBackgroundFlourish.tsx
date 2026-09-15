@@ -110,77 +110,69 @@ export const LoginBackgroundFlourish: React.FC<LoginBackgroundFlourishProps> = (
       </View>
 
       {/* =================================================================== */}
-      {/* 2. LEFT EDGE SWOOPING TRICOLOR RIBBON                               */}
+      {/* 2. AMBIENT TRICOLOR ATMOSPHERE (SOFT FEATHERED AURAS - ZERO CUTOFFS)*/}
       {/* =================================================================== */}
-      <View style={styles.leftRibbonWrap}>
-        <Svg width={140} height={180} viewBox="0 0 140 180">
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
           <Defs>
-            <SvgLinearGradient id="leftSaffronGrad" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0%" stopColor="#FF9933" stopOpacity={0.95} />
-              <Stop offset="100%" stopColor="#FF7700" stopOpacity={0.45} />
+            {/* Soft Ambient Saffron Halo (Top-Right near Chakra) */}
+            <SvgLinearGradient id="ambientSaffronGrad" x1="1" y1="0" x2="0.3" y2="0.7">
+              <Stop offset="0%" stopColor="#FF9933" stopOpacity={isDark ? 0.12 : 0.09} />
+              <Stop offset="50%" stopColor="#FF9933" stopOpacity={isDark ? 0.04 : 0.03} />
+              <Stop offset="100%" stopColor="#FF9933" stopOpacity={0} />
             </SvgLinearGradient>
-            <SvgLinearGradient id="leftWhiteGrad" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={isDark ? 0.9 : 0.95} />
-              <Stop offset="100%" stopColor={isDark ? '#e2e8f0' : '#cbd5e1'} stopOpacity={0.4} />
+
+            {/* Soft Ambient Emerald Halo (Mid/Lower-Left) */}
+            <SvgLinearGradient id="ambientGreenGrad" x1="0" y1="0.6" x2="0.7" y2="1">
+              <Stop offset="0%" stopColor="#138808" stopOpacity={isDark ? 0.10 : 0.07} />
+              <Stop offset="50%" stopColor="#138808" stopOpacity={isDark ? 0.03 : 0.02} />
+              <Stop offset="100%" stopColor="#138808" stopOpacity={0} />
             </SvgLinearGradient>
-            <SvgLinearGradient id="leftGreenGrad" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0%" stopColor="#138808" stopOpacity={0.95} />
-              <Stop offset="100%" stopColor="#0B6B06" stopOpacity={0.4} />
+
+            {/* Ethereal Silk Curve Gradient (Tricolor Hairline Wave) */}
+            <SvgLinearGradient id="silkSaffronFade" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0%" stopColor="#FF9933" stopOpacity={isDark ? 0.25 : 0.20} />
+              <Stop offset="60%" stopColor="#FF9933" stopOpacity={isDark ? 0.08 : 0.06} />
+              <Stop offset="100%" stopColor="#FF9933" stopOpacity={0} />
+            </SvgLinearGradient>
+
+            <SvgLinearGradient id="silkWhiteFade" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={isDark ? 0.35 : 0.30} />
+              <Stop offset="60%" stopColor="#FFFFFF" stopOpacity={isDark ? 0.10 : 0.08} />
+              <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+            </SvgLinearGradient>
+
+            <SvgLinearGradient id="silkGreenFade" x1="0" y1="0" x2="1" y2="1">
+              <Stop offset="0%" stopColor="#138808" stopOpacity={isDark ? 0.25 : 0.20} />
+              <Stop offset="60%" stopColor="#138808" stopOpacity={isDark ? 0.08 : 0.06} />
+              <Stop offset="100%" stopColor="#138808" stopOpacity={0} />
             </SvgLinearGradient>
           </Defs>
 
-          {/* Saffron Layer */}
-          <Path
-            d="M 0 20 C 50 35, 95 65, 135 110 L 125 125 C 85 80, 45 50, 0 35 Z"
-            fill="url(#leftSaffronGrad)"
-          />
-          {/* White Layer */}
-          <Path
-            d="M 0 35 C 45 50, 85 80, 125 125 L 115 140 C 75 95, 35 65, 0 50 Z"
-            fill="url(#leftWhiteGrad)"
-          />
-          {/* Green Layer */}
-          <Path
-            d="M 0 50 C 35 65, 75 95, 115 140 L 105 155 C 65 110, 25 80, 0 65 Z"
-            fill="url(#leftGreenGrad)"
-          />
-        </Svg>
-      </View>
+          {/* Saffron Ambient Glow Field */}
+          <Circle cx="85%" cy="20%" r="240" fill="url(#ambientSaffronGrad)" />
 
-      {/* =================================================================== */}
-      {/* 3. RIGHT EDGE SWOOPING TRICOLOR RIBBON                              */}
-      {/* =================================================================== */}
-      <View style={styles.rightRibbonWrap}>
-        <Svg width={140} height={190} viewBox="0 0 140 190">
-          <Defs>
-            <SvgLinearGradient id="rightSaffronGrad" x1="1" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#FF9933" stopOpacity={0.95} />
-              <Stop offset="100%" stopColor="#FF7700" stopOpacity={0.35} />
-            </SvgLinearGradient>
-            <SvgLinearGradient id="rightWhiteGrad" x1="1" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={isDark ? 0.9 : 0.95} />
-              <Stop offset="100%" stopColor={isDark ? '#e2e8f0' : '#cbd5e1'} stopOpacity={0.35} />
-            </SvgLinearGradient>
-            <SvgLinearGradient id="rightGreenGrad" x1="1" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#138808" stopOpacity={0.95} />
-              <Stop offset="100%" stopColor="#0B6B06" stopOpacity={0.35} />
-            </SvgLinearGradient>
-          </Defs>
+          {/* Green Ambient Glow Field */}
+          <Circle cx="12%" cy="52%" r="220" fill="url(#ambientGreenGrad)" />
 
-          {/* Saffron Layer */}
+          {/* Ethereal Flowing Left Silk Curve — Dissolves smoothly with 0% opacity taper */}
           <Path
-            d="M 140 15 C 95 35, 50 75, 5 125 L 15 140 C 60 90, 105 50, 140 30 Z"
-            fill="url(#rightSaffronGrad)"
+            d="M -10 180 C 40 210, 80 250, 110 310 C 130 350, 140 400, 120 440"
+            fill="none"
+            stroke="url(#silkSaffronFade)"
+            strokeWidth={1.8}
           />
-          {/* White Layer */}
           <Path
-            d="M 140 30 C 105 50, 60 90, 15 140 L 25 155 C 70 105, 115 65, 140 45 Z"
-            fill="url(#rightWhiteGrad)"
+            d="M -10 184 C 40 214, 80 254, 110 314 C 130 354, 140 404, 120 444"
+            fill="none"
+            stroke="url(#silkWhiteFade)"
+            strokeWidth={1.5}
           />
-          {/* Green Layer */}
           <Path
-            d="M 140 45 C 115 65, 70 105, 25 155 L 35 170 C 80 120, 125 80, 140 60 Z"
-            fill="url(#rightGreenGrad)"
+            d="M -10 188 C 40 218, 80 258, 110 318 C 130 358, 140 408, 120 448"
+            fill="none"
+            stroke="url(#silkGreenFade)"
+            strokeWidth={1.8}
           />
         </Svg>
       </View>
@@ -196,9 +188,9 @@ const styles = StyleSheet.create({
   },
   chakraWrap: {
     position: 'absolute',
-    top: 130,
-    right: 0,
-    width: 180,
+    top: 100,
+    right: -20,
+    width: 220,
     height: 280,
     zIndex: 1,
     overflow: 'hidden',
@@ -206,27 +198,9 @@ const styles = StyleSheet.create({
   chakraInner: {
     position: 'absolute',
     top: 0,
-    right: -60,
+    right: -40,
     width: 280,
     height: 280,
-  },
-  leftRibbonWrap: {
-    position: 'absolute',
-    top: 155,
-    left: 0,
-    width: 140,
-    height: 180,
-    zIndex: 2,
-    overflow: 'hidden',
-  },
-  rightRibbonWrap: {
-    position: 'absolute',
-    top: 120,
-    right: 0,
-    width: 140,
-    height: 190,
-    zIndex: 2,
-    overflow: 'hidden',
   },
 });
 
