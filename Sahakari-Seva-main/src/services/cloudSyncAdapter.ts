@@ -2,6 +2,7 @@
 // SAHAKARI SEVA — HYBRID CLOUD SYNC ADAPTER
 // Standardized adapter for syncing persistent local database mutations with
 // remote cloud backends (Supabase PostgreSQL, REST API, or Firebase).
+// Supports both PUSH (mutations to cloud) and PULL (fetching changes from cloud).
 // ==============================================================================
 
 export interface CloudSyncConfig {
@@ -63,6 +64,39 @@ export class CloudSyncAdapter {
       changelog: 'changelog',
     };
     return tableMap[entity] || entity;
+  }
+
+  /**
+   * Fetch records for an entity directly from Supabase REST API.
+   * Enables cross-device synchronization (Phone A <-> Phone B).
+   */
+  public static async fetchFromCloud<T = any>(
+    entity: string,
+    queryParams = ''
+  ): Promise<T[] | null> {
+    if (this.config.provider === 'local_only' || !this.config.endpoint || !this.config.apiKey) {
+      return null;
+    }
+
+    const table = this.getTableName(entity);
+    const url = `${this.config.endpoint}/rest/v1/${table}${queryParams ? `?${queryParams}` : ''}`;
+    const headers = {
+      'apikey': this.config.apiKey!,
+      'Authorization': `Bearer ${this.config.apiKey!}`,
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const res = await fetch(url, { method: 'GET', headers });
+      if (!res.ok) {
+        console.warn(`[CloudSyncAdapter] Failed to fetch ${table} [${res.status}]`);
+        return null;
+      }
+      return await res.json();
+    } catch (err) {
+      console.warn(`[CloudSyncAdapter] Network error fetching ${table}:`, err);
+      return null;
+    }
   }
 
   /**

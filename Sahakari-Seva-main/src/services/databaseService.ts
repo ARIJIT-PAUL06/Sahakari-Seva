@@ -169,6 +169,9 @@ export class DatabaseService {
         }
 
         this.isLoaded = true;
+        // Immediately synchronize with cloud in background and start live polling
+        this.pullFromCloud().catch(() => {});
+        this.startRealtimePolling();
       } catch (err) {
         console.error('[DatabaseService] Initialization error; fallback to memory', err);
         this.isLoaded = true;
@@ -176,6 +179,136 @@ export class DatabaseService {
     })();
 
     return this.loadPromise;
+  }
+
+  private static lastCloudPull = 0;
+  private static isPullingCloud = false;
+  private static pollTimer: any = null;
+
+  /**
+   * Starts periodic background synchronization with Supabase.
+   * Ensures that if User A makes a change on Phone A, User B on Phone B
+   * receives the update within seconds without needing to restart the app.
+   */
+  public static startRealtimePolling(intervalMs = 6000): void {
+    if (this.pollTimer) return;
+    this.pollTimer = setInterval(() => {
+      this.pullFromCloud().catch(() => {});
+    }, intervalMs);
+  }
+
+  /**
+   * Pulls the latest records from Supabase and merges them into local storage.
+   * Guarantees cross-device synchronization across different phones and browsers.
+   */
+  public static async pullFromCloud(force = false): Promise<boolean> {
+    const now = Date.now();
+    if (!force && (now - this.lastCloudPull < 3000 || this.isPullingCloud)) {
+      return false;
+    }
+
+    this.isPullingCloud = true;
+    try {
+      // 1. Pull bookings from Supabase
+      const cloudBookings = await CloudSyncAdapter.fetchFromCloud<any>('bookings', 'order=created_at.desc');
+      let bookingsModified = false;
+
+      if (Array.isArray(cloudBookings) && cloudBookings.length > 0) {
+        for (const cb of cloudBookings) {
+          const item: Booking = cb.raw_data ? { ...cb.raw_data, ...cb } : cb;
+
+          // Rehydrate worker & customer relationships if missing
+          if (!item.worker && item.worker_id) {
+            item.worker =
+              this.workersCache.find(w => w.id === item.worker_id) ||
+              (MOCK_WORKERS as any).find((w: any) => w.id === item.worker_id);
+          }
+          if (!item.customer && item.customer_id) {
+            item.customer =
+              this.customerProfilesCache[item.customer_id] ||
+              (MOCK_CUSTOMERS as any).find((c: any) => c.id === item.customer_id);
+          }
+
+          const idx = this.bookingsCache.findIndex(
+            b => b.id === item.id || b.booking_code === item.id
+          );
+          if (idx === -1) {
+            this.bookingsCache.unshift(item);
+            bookingsModified = true;
+          } else {
+            const existing = this.bookingsCache[idx];
+            if (
+              existing.status !== item.status ||
+              existing.payment_status !== item.payment_status ||
+              existing.completion_requested !== item.completion_requested ||
+              (item.updated_at && item.updated_at > existing.updated_at)
+            ) {
+              this.bookingsCache[idx] = { ...existing, ...item };
+              bookingsModified = true;
+            }
+          }
+        }
+
+        if (bookingsModified) {
+          await this.storageSet(KEY_BOOKINGS, JSON.stringify(this.bookingsCache));
+          DeviceEventEmitter.emit('app_booking_updated');
+          DeviceEventEmitter.emit('app_db_updated');
+        }
+      }
+
+      // 2. Pull invoices from Supabase
+      const cloudInvoices = await CloudSyncAdapter.fetchFromCloud<any>('invoices', 'order=created_at.desc');
+      let invoicesModified = false;
+      if (Array.isArray(cloudInvoices) && cloudInvoices.length > 0) {
+        for (const ci of cloudInvoices) {
+          const item = ci.raw_data ? { ...ci.raw_data, ...ci } : ci;
+          const idx = this.invoicesCache.findIndex(
+            i => i.id === item.id || i.booking_id === item.booking_id
+          );
+          if (idx === -1) {
+            this.invoicesCache.unshift(item);
+            invoicesModified = true;
+          } else {
+            this.invoicesCache[idx] = { ...this.invoicesCache[idx], ...item };
+            invoicesModified = true;
+          }
+        }
+        if (invoicesModified) {
+          await this.storageSet(KEY_INVOICES, JSON.stringify(this.invoicesCache));
+        }
+      }
+
+      // 3. Pull notifications from Supabase
+      const cloudNotifs = await CloudSyncAdapter.fetchFromCloud<any>('notifications', 'order=created_at.desc');
+      let notifsModified = false;
+      if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
+        for (const cn of cloudNotifs) {
+          const item = cn.raw_data ? { ...cn.raw_data, ...cn } : cn;
+          const role = item.action_url?.includes('/jobs') ? 'worker' : 'customer';
+          const list = this.notificationsCache[role];
+          const idx = list.findIndex(n => n.id === item.id);
+          if (idx === -1) {
+            list.unshift(item);
+            notifsModified = true;
+          } else if (list[idx].read !== item.read) {
+            list[idx].read = item.read;
+            notifsModified = true;
+          }
+        }
+        if (notifsModified) {
+          await this.storageSet(KEY_NOTIFICATIONS, JSON.stringify(this.notificationsCache));
+          DeviceEventEmitter.emit('app_notifications_updated');
+        }
+      }
+
+      this.lastCloudPull = Date.now();
+      return true;
+    } catch (err) {
+      console.warn('[DatabaseService] Failed to pull from cloud:', err);
+      return false;
+    } finally {
+      this.isPullingCloud = false;
+    }
   }
 
   /**
@@ -328,6 +461,8 @@ export class DatabaseService {
   public static bookings = {
     getAll: async (filter?: { customerId?: string; workerId?: string }): Promise<Booking[]> => {
       await DatabaseService.initialize();
+      // Non-blocking background sync with Supabase to discover bookings from other phones
+      DatabaseService.pullFromCloud().catch(() => {});
       let list = [...DatabaseService.bookingsCache];
       if (filter?.customerId) {
         list = list.filter(b => b.customer_id === filter.customerId);
