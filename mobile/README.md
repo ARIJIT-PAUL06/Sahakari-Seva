@@ -1,111 +1,129 @@
-# Sahakari Seva (सहकारी सेवा / সহকারী সেবা / சகாரி சேவா / సహకారి సేవ / सहकारी सेवा / સહકારી સેવા / ಸಹಕಾರಿ ಸೇವಾ)
+# Sahakari Seva — Mobile Application Core (सहकारी सेवा)
 
-> **India's First Worker-Owned Cooperative Platform for Urban & Household Gig Services** — restructured as a **mobile-first application** (Expo SDK 52 / React Native) that runs on **Expo Go** for Android & iOS.
-
----
-
-## 🌟 Key Highlights
-
-- **📱 True Mobile Application** — Expo SDK 52 / React Native app in `mobile/` with role-based bottom tabs (Customer, Worker, Admin), touch-first UI, native safe areas, GPS matching, and offline demo fallback so *every* screen works even without the backend.
-- **🗣 8-Language Simultaneous Localization** — English + **7 Indian languages** (हिन्दी Hindi, বাংলা Bengali, தமிழ் Tamil, తెలుగు Telugu, मराठी Marathi, ગુજરાતી Gujarati, ಕನ್ನಡ Kannada). Switching languages swaps **the entire app at once** — tabs, screens, alerts, invoices, admin dashboards — behind a smooth branded cross-fade with **zero glitches**. Your choice persists across restarts.
-- **✨ Unique Classy Animations Everywhere** — reusable animation system (`FadeInView`, `ScalePressable`, `AnimatedNumber`, `PulseView`): staggered entrance sequences on every screen, springy haptic press feedback, count-up earnings/KPI numbers, gentle pulsing emergency banner, and cross-fade screen transitions.
-- **🤖 AI Demand Forecasting & Workforce Allocation** — Ensemble time-series model (weekend surge ×1.55, OLS trend regression, 95% confidence bounds) plus real-time supply–demand balancing with 1-tap standby worker mobilization.
-- **📍 Zero Paid Map APIs** — 100% open-source OpenStreetMap + Haversine geo-matching. Zero Google Maps / Mapbox fees.
-- **💰 Fair-Wage Cooperative Economics** — 85% direct to the worker, 10% to the social-security & welfare corpus, 5% cooperative operations — transparent on every booking and invoice.
-- **🛡 Cooperative Governance** — worker KYC verification queue, ITI/NSDC certification checks, welfare passbook with Ayushman Bharat + PMSBY integration.
+> **Expo SDK 52 / React Native (React 19) Mobile Core for Sahakari Seva**  
+> India's First Worker-Owned Cooperative Platform for Urban & Household Gig Services.
 
 ---
 
-## 🚀 Quick Start (Expo Go — Android)
+[![Production Web App](https://img.shields.io/badge/Production-Live%20on%20Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://sahakari-seva-six.vercel.app)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-ARIJIT--PAUL06%2FSahakari--Seva-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ARIJIT-PAUL06/Sahakari-Seva)
+[![Framework](https://img.shields.io/badge/Expo-SDK%2052-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev)
+[![React Native](https://img.shields.io/badge/React%20Native-0.86-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactnative.dev)
+[![Database](https://img.shields.io/badge/Cloud%20Database-Supabase%20PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://cvbraoniruzplwxbgzja.supabase.co)
+[![Languages](https://img.shields.io/badge/Localization-14%20Indian%20Languages-FF9933?style=for-the-badge)](#-14-language-comprehensive-localization)
 
-### 1. Install Expo Go on your Android phone
-Search **"Expo Go"** in the Google Play Store and install it.
+---
 
-### 2. Start the mobile app
-```bash
-cd mobile
-npm install
-npm start
+## 🌟 Highlights & Capabilities
+
+- **📱 Unified Multi-Platform App:** Single codebase supporting **Expo Go (Android / iOS)** and **Modern Web**.
+- **☁️ Supabase Real-Time Cloud Sync:** Real-time two-way synchronization via `cloudSyncAdapter.ts` and `databaseService.ts`. Changes made on one device instantly propagate to others, with delta-based offline local storage.
+- **🛡 Sovereign Cooperative Trust Architecture:** 
+  - Ministry of Cooperation & MSDE recognized cooperative framework.
+  - Three Core Pillars: **100% ITI & Skill India Certified**, **24/7 Cooperative Ombudsman**, and **Worker Welfare Safety Net**.
+  - Redesigned Login screen featuring subtle architectural watermark silhouettes of iconic Indian monuments (*India Gate, Taj Mahal, Qutub Minar, Red Fort, Lotus Temple*) and a slender feathered tricolor horizon.
+- **🗣 14-Language Comprehensive Localization:** Full coverage for English + 13 Major Indian regional languages (Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia, Assamese, Urdu, Bhojpuri) with seamless cross-fade switching.
+- **🤝 Pay on Completion & Dual Sign-Off:** Customers only pay after the job is finished, verified by a 4-digit code or one-tap approval with photo verification.
+- **🤖 AI Worker Voice Assistant & Customer Universal Search:** Intent engine for workers and a 1-tap `ACTIONS_DIRECTORY` universal search for customers adhering to the platform's Dual-Registration Rule.
+- **📍 Zero Paid Map APIs:** Complete open-source geocoding with OpenStreetMap and client-side Haversine matching.
+
+---
+
+## 🌐 14-Language Comprehensive Localization
+
+| # | Language | Native Script | Landmark Region Coverage |
+|:---:|:---|:---|:---|
+| 1 | **English** | English | Pan-India / International / Default |
+| 2 | **Hindi** | हिन्दी | North & Central India (Delhi, UP, MP, Rajasthan, Bihar) |
+| 3 | **Bengali** | বাংলা | East India (West Bengal, Kolkata, Tripura) |
+| 4 | **Tamil** | தமிழ் | South India (Tamil Nadu, Chennai) |
+| 5 | **Telugu** | తెలుగు | South India (Andhra Pradesh, Telangana, Hyderabad) |
+| 6 | **Marathi** | मराठी | Western India (Maharashtra, Mumbai, Pune) |
+| 7 | **Gujarati** | ગુજરાતી | Western India (Gujarat, Ahmedabad, Surat) |
+| 8 | **Kannada** | ಕನ್ನಡ | South India (Karnataka, Bengaluru) |
+| 9 | **Malayalam** | മലയാളം | South India (Kerala, Kochi, Thiruvananthapuram) |
+| 10 | **Punjabi** | ਪੰਜਾਬੀ | North & Northwest (Punjab, Chandigarh, Delhi NCR) |
+| 11 | **Odia** | ଓଡ଼ିଆ | Eastern India (Odisha, Bhubaneswar, Cuttack) |
+| 12 | **Assamese** | অসমীয়া | Northeast India (Assam, Guwahati & Seven Sisters) |
+| 13 | **Urdu** | اردو | Pan-India / North / J&K / Hyderabad / Lucknow |
+| 14 | **Bhojpuri** | भोजपुरी | Heartland Workforce (Bihar, Purvanchal UP, Jharkhand) |
+
+---
+
+## 🛠 Directory Layout & Architecture
+
+```
+src/
+├── animations/              # Smooth motion primitives & LanguageSwitchProvider
+├── components/
+│   ├── common/              # Header, LanguageModal, WorkerCard, DatabaseSyncModal
+│   ├── worker/              # WorkerAIAssistantWidget, WorkerIDModal
+│   ├── map/                 # MobileMapView (OpenStreetMap + Haversine)
+│   └── ui/                  # Buttons, Input, Badges, Tabs
+├── i18n/                    # 14 complete JSON locale dictionaries (en, hi, bn...)
+├── navigation/              # Role-based Tab & Stack navigation (RootNavigator)
+├── screens/
+│   ├── auth/                # Sovereign LoginScreen with Monument Watermarks
+│   ├── customer/            # HomeScreen, WorkerSearchScreen, Bookings, Checkout
+│   ├── worker/              # WorkerHomeScreen, JobManagement, WelfarePassbook
+│   └── admin/               # AdminDashboardScreen, KYCVerificationScreen
+├── services/
+│   ├── cloudSyncAdapter.ts  # Supabase real-time delta synchronization
+│   ├── databaseService.ts   # Local AsyncStorage + Cloud hybrid persistence
+│   ├── aiAssistantService.ts# Multilingual Worker AI intent classification
+│   ├── apiClient.ts         # Unified API client with automatic offline fallback
+│   └── gpsService.ts        # OpenStreetMap geocoding & Haversine distance
+└── theme/                   # Cooperative design tokens, HSL colors, typography
 ```
 
-### 3. Connect
-Put your phone and computer on the **same Wi-Fi**, open **Expo Go**, tap **"Scan QR code"**, and scan the QR shown in the terminal. The app bundles and opens in seconds. No Android Studio, no APK, no build required.
+---
 
-> **Detailed step-by-step guide:** [`docs/EXPO_GO_SETUP.md`](docs/EXPO_GO_SETUP.md) — includes Tunnel mode, LAN troubleshooting, and connecting the live backend API (`EXPO_PUBLIC_API_URL=http://<computer-ip>:5001`).
+## 🚀 Running the Mobile Application
 
-### 4. Optional — Backend API (port 5001)
+### 1. Install Dependencies
 ```bash
-cd backend
 npm install
+```
+
+### 2. Environment Variables (`.env.local`)
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://cvbraoniruzplwxbgzja.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_nGQOmXn-_7FD0w4dMwbvgg_6KGkPR0X
+```
+
+### 3. Run in Web Browser
+```bash
+npm run web
+# or:
 npm run dev
 ```
-Without the backend the app automatically falls back to built-in demo data — every feature still works.
 
----
-
-## 🌐 Language Switching (7 Indian Languages + English)
-
-| Language | Native | Script |
-|---|---|---|
-| English | English | Latin |
-| Hindi | हिन्दी | Devanagari |
-| Bengali | বাংলা | Bengali |
-| Tamil | தமிழ் | Tamil |
-| Telugu | తెలుగు | Telugu |
-| Marathi | मराठी | Devanagari |
-| Gujarati | ગુજરાતી | Gujarati |
-| Kannada | ಕನ್ನಡ | Kannada |
-
-Tap the **🌐 chip** in any header to open the language picker. The switch is
-orchestrated by `LanguageSwitchProvider` (`mobile/src/animations/`) — a
-branded overlay cross-fades in (140 ms), i18next swaps all ~300 UI strings in a
-single render, then the overlay fades out (280 ms). **No text jumps, no
-partial translation, ever.** The selected language is saved with
-AsyncStorage and restored on launch.
-
----
-
-## 📱 Mobile App Screens & Flows
-
-| Role | Screens & Capabilities |
-|---|---|
-| **Customer** | **Home**: animated category grid, pulsing emergency trigger, nearby highlights, 85/10/5 fair-split banner.<br>**Search**: trade chips (localized), rating & emergency filters, Haversine ranking.<br>**Map**: fullscreen OpenStreetMap with radius perimeter and worker pins.<br>**Detail**: worker background, verified ITI certificates, reviews, cooperative affiliation.<br>**Booking**: transparent wage-split breakdown, emergency dispatch toggle, instant confirmation.<br>**Invoice**: official cooperative tax receipt with 85/10/5 distribution & share. |
-| **Worker** | **Dashboard**: count-up direct earnings, welfare corpus, live availability toggle.<br>**Jobs**: active task lifecycle (Accept → Start → Complete) with emergency badges.<br>**Welfare**: social-security passbook (Ayushman Bharat, PMSBY, cooperative pension).<br>**Credentials**: cooperative digital ID card, trade profile editor, certification upload.<br>**GPS & Radius**: live GPS sync, address resolution, service radius picker, privacy notice. |
-| **Admin** | **Federation**: KPI grid with animated counters & welfare corpus.<br>**Verify KYC**: pending/verified queue with approve/reject workflows.<br>**AI Forecast**: 7-day demand curve, weekend surge (+55%), confidence bounds, cold-start fallback.<br>**Allocation**: live supply-demand clusters with 1-tap standby mobilization. |
-
----
-
-## 🧱 Architecture
-
+### 4. Run on Android / iOS via Expo Go
+```bash
+npm start
 ```
-mobile/            → Expo SDK 52 React Native app (primary deliverable)
-  src/animations/  → FadeInView, ScalePressable, AnimatedNumber, PulseView,
-                     LanguageSwitchProvider (glitch-free whole-app switching)
-  src/i18n/        → 8 complete locales (en, hi, bn, ta, te, mr, gu, kn)
-  src/screens/     → auth / customer / worker / admin role flows
-  src/components/  → ui, common (Header, modals, WorkerCard), map
-  src/services/    → ApiClient (auto LAN host detection + offline fallback), GPS
-  src/theme/       → design tokens (colors, spacing, typography, radii, shadows)
-backend/           → Express 5 + TypeScript REST API (port 5001)
-docs/              → EXPO_GO_SETUP.md + architecture, API & ML documentation
+Scan the QR code displayed in your terminal using the **Expo Go** app on your phone.
+
+### 5. Build for Production Web
+```bash
+npm run build:web
+```
+
+### 6. TypeScript Validation
+```bash
+npm run typecheck
 ```
 
 ---
 
-## 📚 Documentation
+## 📌 Dual-Registration Rule Reference
 
-| Guide | Description |
-|---|---|
-| [`docs/EXPO_GO_SETUP.md`](docs/EXPO_GO_SETUP.md) | **Run on Android via Expo Go** — step-by-step, QR scanning, Tunnel mode, backend hookup, troubleshooting |
-| [`docs/MOBILE_ARCHITECTURE.md`](docs/MOBILE_ARCHITECTURE.md) | Mobile navigation, touch targets, offline-resilient architecture |
-| [`docs/API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) | Complete REST API reference |
-| [`docs/ML_FORECASTING.md`](docs/ML_FORECASTING.md) | Time-series OLS regression, EMA smoothing, surge multipliers |
-| [`docs/GEOLOCATION_MATCHING.md`](docs/GEOLOCATION_MATCHING.md) | Haversine engine, 5-factor scoring, privacy masking |
-| [`docs/WORKFORCE_ALLOCATION.md`](docs/WORKFORCE_ALLOCATION.md) | Supply-demand balancing and mobilization |
-| [`docs/INTERNATIONALIZATION.md`](docs/INTERNATIONALIZATION.md) | Localization architecture |
+Per developer guidelines in `AGENTS.md`:
+1. **Worker AI Assistant (`src/services/aiAssistantService.ts` & `src/components/worker/WorkerAIAssistantWidget.tsx`)**: Every added capability must be registered with intent keywords and worker action cards.
+2. **Customer Universal Search (`src/screens/customer/HomeScreen.tsx`)**: Every added capability must be registered with `ACTIONS_DIRECTORY` or category search indexing for 1-tap discovery.
 
 ---
 
-## ⚖️ License & Cooperative Ethics
+## ⚖️ License
 
-Sahakari Seva is developed under the MIT License for open-source cooperative public goods. Dedicated to the dignity of informal gig labor and digital sovereignty for worker cooperatives.
+MIT License — Developed as an open-source public good for worker cooperatives.
