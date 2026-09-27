@@ -45,6 +45,7 @@ import { FadeInView, ScalePressable } from '../../animations';
 import { SupplementalBillModal } from '../../components/worker/SupplementalBillModal';
 import { WorkerCompletionScannerModal } from '../../components/worker/WorkerCompletionScannerModal';
 import { WorkerPaymentQRModal } from '../../components/worker/WorkerPaymentQRModal';
+import { ConfirmCashModal } from '../../components/common/ConfirmCashModal';
 import { useAppBackHandler } from '../../hooks/useAppBackHandler';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -94,6 +95,7 @@ export const WorkerJobDetailScreen: React.FC<WorkerJobDetailScreenProps> = ({
   const [billModalVisible, setBillModalVisible] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
   const [paymentQrVisible, setPaymentQrVisible] = useState(false);
+  const [cashReceivedModalVisible, setCashReceivedModalVisible] = useState(false);
 
   const fetchJob = async () => {
     if (!bookingId) return;
@@ -772,33 +774,7 @@ export const WorkerJobDetailScreen: React.FC<WorkerJobDetailScreenProps> = ({
 
                       <TouchableOpacity
                         style={styles.confirmCashReceivedBtn}
-                        onPress={() => {
-                          Alert.alert(
-                            'Confirm Cash Receipt',
-                            `Did customer hand you ₹${finalAmount} in physical cash?`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              {
-                                text: 'Yes, Received Cash',
-                                onPress: async () => {
-                                  try {
-                                    setUpdating(true);
-                                    await ApiClient.confirmCashPayment(job.id, Number(finalAmount));
-                                    Alert.alert(
-                                      'Payment Settled! ✓',
-                                      `₹${workerTakeHome} (85% net wage) credited to your cooperative account!`
-                                    );
-                                    await fetchJob();
-                                  } catch (err: any) {
-                                    Alert.alert('Error', err.message || 'Could not record cash payment.');
-                                  } finally {
-                                    setUpdating(false);
-                                  }
-                                },
-                              },
-                            ]
-                          );
-                        }}
+                        onPress={() => setCashReceivedModalVisible(true)}
                         activeOpacity={0.85}
                       >
                         <Check size={16} color="#059669" />
@@ -873,13 +849,28 @@ export const WorkerJobDetailScreen: React.FC<WorkerJobDetailScreenProps> = ({
             try {
               setUpdating(true);
               await ApiClient.confirmCashPayment(job.id, Number(finalAmount));
-              Alert.alert(
-                'Payment Settled! ✓',
-                `₹${workerTakeHome} (85% net wage) credited to your cooperative account!`
-              );
               await fetchJob();
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Could not record cash payment.');
+            } finally {
+              setUpdating(false);
+            }
+          }}
+        />
+      )}
+
+      {/* Cash Payment Received Confirmation Modal */}
+      {job && (
+        <ConfirmCashModal
+          visible={cashReceivedModalVisible}
+          onClose={() => setCashReceivedModalVisible(false)}
+          amount={Number(finalAmount)}
+          role="worker"
+          otherPartyName={job.customer?.full_name || 'the customer'}
+          bookingCode={job.booking_code}
+          onConfirm={async () => {
+            setUpdating(true);
+            try {
+              await ApiClient.confirmCashPayment(job.id, Number(finalAmount));
+              await fetchJob();
             } finally {
               setUpdating(false);
             }

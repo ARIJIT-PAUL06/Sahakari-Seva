@@ -22,6 +22,7 @@ import RatingModal from '../../components/common/RatingModal';
 import { PaymentCheckoutModal } from '../../components/common/PaymentCheckoutModal';
 import { PaymentConfirmedModal } from '../../components/common/PaymentConfirmedModal';
 import { CompletionQRModal } from '../../components/common/CompletionQRModal';
+import { ConfirmCashModal } from '../../components/common/ConfirmCashModal';
 import { ApiClient } from '../../services/apiClient';
 import { Booking, Payment, Invoice } from '../../types';
 import { translateTrade } from '../../i18n';
@@ -50,6 +51,7 @@ export const BookingDetailScreen: React.FC = () => {
   const [latestInvoice, setLatestInvoice] = useState<Invoice | null>(null);
   const [qrModalVisible, setQrModalVisible] = useState(false);
   const [verifyingWork, setVerifyingWork] = useState(false);
+  const [cashConfirmModalVisible, setCashConfirmModalVisible] = useState(false);
 
   const fetchBooking = async () => {
     if (!bookingId) return;
@@ -1019,29 +1021,7 @@ export const BookingDetailScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.paidCashSecondaryBtn}
-              onPress={() => {
-                Alert.alert(
-                  'Confirm Cash Payment',
-                  `Did you hand ₹${finalPrice.toFixed(0)} in physical cash directly to ${worker?.profile?.full_name || 'the professional'}?`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Yes, Handed Cash',
-                      onPress: async () => {
-                        try {
-                          setPaying(true);
-                          const res = await ApiClient.confirmCashPayment(booking.id, finalPrice);
-                          handlePaymentSuccess(res);
-                        } catch (err: any) {
-                          Alert.alert('Error', err.message || 'Could not record cash payment.');
-                        } finally {
-                          setPaying(false);
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
+              onPress={() => setCashConfirmModalVisible(true)}
               activeOpacity={0.75}
             >
               <Text style={styles.paidCashSecondaryBtnText}>
@@ -1154,6 +1134,27 @@ export const BookingDetailScreen: React.FC = () => {
         onClose={() => setQrModalVisible(false)}
         onVerifyAndPay={handleCustomerVerifyAndComplete}
       />
+
+      {/* Cash Payment Confirmation Modal */}
+      {booking && (
+        <ConfirmCashModal
+          visible={cashConfirmModalVisible}
+          onClose={() => setCashConfirmModalVisible(false)}
+          amount={finalPrice}
+          role="customer"
+          otherPartyName={worker?.profile?.full_name || 'the professional'}
+          bookingCode={booking.booking_code}
+          onConfirm={async () => {
+            setPaying(true);
+            try {
+              const res = await ApiClient.confirmCashPayment(booking.id, finalPrice);
+              handlePaymentSuccess(res);
+            } finally {
+              setPaying(false);
+            }
+          }}
+        />
+      )}
       </ScrollView>
     </View>
   );
