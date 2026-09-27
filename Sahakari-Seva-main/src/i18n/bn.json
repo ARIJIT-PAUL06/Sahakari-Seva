@@ -162,7 +162,15 @@
     "error_title": "ত্রুটি",
     "confirmed_title": "বুকিং নিশ্চিত! 🎉",
     "confirmed_msg": "বুকিং {{code}} {{name}}-কে পাঠানো হয়েছে। AI পূর্বাভাসের জন্য চাহিদা ইভেন্ট নথিভুক্ত হয়েছে!",
-    "view_bookings": "বুকিং দেখুন"
+    "view_bookings": "বুকিং দেখুন",
+    "slot_busy_title": "এই সময় স্লটে কর্মী ব্যস্ত আছেন",
+    "slot_busy_desc": "{{name}} ইতিমধ্যেই {{date}}-এ {{time}}-এ একটি কাজে ব্যস্ত আছেন। অনুগ্রহ করে অন্য সময় বেছে নিন অথবা নিকটবর্তী বিকল্প কর্মী খুঁজুন।",
+    "select_different_time": "অন্য সময় বেছে নিন",
+    "find_closest_alternative": "নিকটতম বিকল্প খুঁজুন",
+    "closest_alternative_title": "নিকটতম বিকল্প কর্মী",
+    "closest_alternative_banner": "ইনি আপনার নির্ধারিত সময়ে উপলব্ধ নিকটতম যাচাইকৃত পেশাদার। আপনি এখনই বুক করতে পারেন!",
+    "slot_available": "উপলব্ধ",
+    "slot_booked": "বুক করা হয়েছে"
   },
   "bookingDetail": {
     "loading": "বুকিং বিবরণ লোড হচ্ছে...",

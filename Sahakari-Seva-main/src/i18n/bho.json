@@ -168,7 +168,15 @@
     "error_title": "गड़बड़ी",
     "confirmed_title": "बुकिंग पक्का हो गइल! 🎉",
     "confirmed_msg": "बुकिंग {{code}} {{name}} के भेजल गइल। AI अनुमान में दर्ज!",
-    "view_bookings": "बुकिंग देखीं"
+    "view_bookings": "बुकिंग देखीं",
+    "slot_busy_title": "एह समय में कारीगर व्यस्त बाड़े",
+    "slot_busy_desc": "{{name}} अभी {{date}} के {{time}} पर दूसरा काम में व्यस्त बाड़े। कृपया कवनो दूसर समय चुनीं या नजदीकी विकल्प खोजीं।",
+    "select_different_time": "दूसर समय स्लॉट चुनीं",
+    "find_closest_alternative": "नजदीकी विकल्प खोजीं",
+    "closest_alternative_title": "सबसे नजदीकी विकल्प कारीगर",
+    "closest_alternative_banner": "ई रउआ के माँगल समय पर उपलब्ध सबसे नजदीकी सत्यापित कारीगर बाड़े। रउआ अबहीं बुक कर सकीं ले!",
+    "slot_available": "खाली बा",
+    "slot_booked": "बुक बा"
   },
   "bookingDetail": {
     "title": "बुकिंग के विवरण",

@@ -162,7 +162,15 @@
     "error_title": "ભૂલ",
     "confirmed_title": "બુકિંગ પુષ્ટિ! 🎉",
     "confirmed_msg": "બુકિંગ {{code}} {{name}} ને મોકલાયું. AI આગાહી માટે માંગ ઘટના નોંધાઈ!",
-    "view_bookings": "બુકિંગ જુઓ"
+    "view_bookings": "બુકિંગ જુઓ",
+    "slot_busy_title": "આ સમય સ્લોટમાં કારીગર વ્યસ્ત છે",
+    "slot_busy_desc": "{{name}} પહેલાથી જ {{date}} ના રોજ {{time}} વાગ્યે એક કામમાં વ્યસ્ત છે. કૃપા કરીને બીજો સમય પસંદ કરો અથવા નજીકના વૈકલ્પિક કારીગર શોધો.",
+    "select_different_time": "બીજો સમય પસંદ કરો",
+    "find_closest_alternative": "નજીકનો વિકલ્પ શોધો",
+    "closest_alternative_title": "નજીકના વૈકલ્પિક કારીગર",
+    "closest_alternative_banner": "આ તમારા વિનંતી કરેલા સમયે ઉપલબ્ધ સૌથી નજીકના પ્રમાણિત વ્યાવસાયિક છે. તમે અત્યારે બુક કરી શકો છો!",
+    "slot_available": "ઉપલબ્ધ",
+    "slot_booked": "બુક કરેલ"
   },
   "bookingDetail": {
     "loading": "બુકિંગ વિગતો લોડ થાય છે...",

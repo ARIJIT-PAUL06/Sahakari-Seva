@@ -168,7 +168,15 @@
     "error_title": "ତ୍ରୁଟି",
     "confirmed_title": "ବୁକିଂ ନିଶ୍ଚିତ ହେଲା! 🎉",
     "confirmed_msg": "ବୁକିଂ {{code}} {{name}} ଙ୍କୁ ପଠାଗଲା। AI ପୂର୍ବାନୁମାନରେ ରେକର୍ଡ ହେଲା!",
-    "view_bookings": "ବୁକିଂ ଦେଖନ୍ତୁ"
+    "view_bookings": "ବୁକିଂ ଦେଖନ୍ତୁ",
+    "slot_busy_title": "ଏହି ସମୟରେ କାରିଗର ବ୍ୟସ୍ତ ଅଛନ୍ତି",
+    "slot_busy_desc": "{{name}} ବର୍ତ୍ତମାନ {{date}} ରେ {{time}} ସମୟରେ ଅନ୍ୟ କାମରେ ବ୍ୟସ୍ତ ଅଛନ୍ତି। ଦୟାକରି ଅନ୍ୟ ସମୟ ବାଛନ୍ତୁ କିମ୍ବା ନିକଟସ୍ଥ ବିକଳ୍ପ କାରିଗର ଖୋଜନ୍ତୁ।",
+    "select_different_time": "ଅନ୍ୟ ସମୟ ବାଛନ୍ତୁ",
+    "find_closest_alternative": "ନିକଟତମ ବିକଳ୍ପ କାରିଗର ଖୋଜନ୍ତୁ",
+    "closest_alternative_title": "ସବୁଠାରୁ ନିକଟତମ ବିକଳ୍ପ କାରିଗର",
+    "closest_alternative_banner": "ଆପଣଙ୍କ ଅନୁରୋଧିତ ସମୟରେ ଏହା ସବୁଠାରୁ ନିକଟତମ ପ୍ରମାଣିତ କାରିଗର। ଆପଣ ଏବେ ବୁକ୍ କରିପାରିବେ!",
+    "slot_available": "ଉପଲବ୍ଧ",
+    "slot_booked": "ବୁକ୍ ହୋଇଛି"
   },
   "bookingDetail": {
     "title": "ବୁକିଂ ବିବରଣୀ",

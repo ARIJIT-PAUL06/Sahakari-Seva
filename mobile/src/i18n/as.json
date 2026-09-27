@@ -168,7 +168,15 @@
     "error_title": "ত্ৰুটি",
     "confirmed_title": "বুকিং নিশ্চিত হ'ল! 🎉",
     "confirmed_msg": "বুকিং {{code}} {{name}} লৈ পঠিওৱা হ'ল। AI পূৰ্বাভাসত লিপিবদ্ধ!",
-    "view_bookings": "বুকিং চাওক"
+    "view_bookings": "বুকিং চাওক",
+    "slot_busy_title": "এই সময়ত কাৰিকৰ ব্যস্ত আছে",
+    "slot_busy_desc": "{{name}} বৰ্তমান {{date}} তাৰিখে {{time}} ত আন কামত ব্যস্ত আছে। অনুগ্ৰহ কৰি অন্য সময় বাছক বা নিকটৱৰ্তী বিকল্প কাৰিকৰ সন্ধান কৰক।",
+    "select_different_time": "অন্য সময় বাছক",
+    "find_closest_alternative": "নিকটৱৰ্তী বিকল্প কাৰিকৰ সন্ধান কৰক",
+    "closest_alternative_title": "নিকটতম বিকল্প কাৰিকৰ",
+    "closest_alternative_banner": "আপুনি বিচৰা সময়ত এইজন আটাইতকৈ নিকটৱৰ্তী পৰীক্ষিত কাৰিকৰ। আপুনি এতিয়াই বুক কৰিব পাৰে!",
+    "slot_available": "উপলব্ধ",
+    "slot_booked": "বুক হৈছে"
   },
   "bookingDetail": {
     "title": "বুকিং বিৱৰণ",

@@ -462,7 +462,7 @@ export class ApiClient {
    * Minimum buffer is 1 hour (60 minutes).
    */
   public static checkScheduleConflict(
-    candidateBooking: Booking | null | undefined,
+    candidateBooking: Partial<Booking> | Booking | null | undefined,
     existingBookings: Booking[],
     bufferMinutes: number = 60
   ): {

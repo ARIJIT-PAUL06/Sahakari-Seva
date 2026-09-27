@@ -168,7 +168,15 @@
     "awaiting_short": "Awaiting",
     "confirmed_title": "Booking Confirmed! 🎉",
     "confirmed_msg": "Booking {{code}} has been confirmed by {{name}}.",
-    "view_bookings": "View Bookings"
+    "view_bookings": "View Bookings",
+    "slot_busy_title": "Professional Busy in this Time Slot",
+    "slot_busy_desc": "{{name}} is already committed to an active assignment at {{time}} on {{date}}. Please select a different time slot or find a nearby alternative professional.",
+    "select_different_time": "Select Different Time Slot",
+    "find_closest_alternative": "Find Closest Alternative",
+    "closest_alternative_title": "Closest Alternative Professional",
+    "closest_alternative_banner": "This is the closest verified professional available at your requested time. You can book now!",
+    "slot_available": "Available",
+    "slot_booked": "Booked"
   },
   "bookingDetail": {
     "loading": "Loading booking details...",

@@ -18,7 +18,7 @@ import { WorkerCard } from '../../components/common/WorkerCard';
 import { ApiClient } from '../../services/apiClient';
 import { MobileLocationService } from '../../services/locationService';
 import { NearbyWorkerResult, ServiceCategory } from '../../types';
-import { Map, Zap } from 'lucide-react-native';
+import { Map, Zap, MapPin } from 'lucide-react-native';
 import { translateTrade } from '../../i18n';
 import { useTheme } from '../../theme';
 import type { Palette } from '../../theme';
@@ -159,6 +159,22 @@ export const WorkerSearchScreen: React.FC<{ route: any; navigation: any }> = ({ 
         </View>
       )}
 
+      {/* Alternative Worker Redirection Notice Banner */}
+      {route.params?.alternativeBanner && (
+        <View style={styles.alternativeActiveBanner}>
+          <MapPin size={18} color="#059669" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.alternativeActiveTitle}>
+              📍 Closest Available Verified Alternatives
+            </Text>
+            <Text style={styles.alternativeActiveDesc}>
+              {route.params.originalWorkerName || 'Selected professional'} is busy at{' '}
+              {route.params.requestedTime || 'that time'}. Below are the closest verified alternatives ready for service.
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Results List */}
       <ScrollView contentContainerStyle={styles.listContent}>
         {loading ? (
@@ -175,8 +191,26 @@ export const WorkerSearchScreen: React.FC<{ route: any; navigation: any }> = ({ 
               worker={worker}
               index={idx}
               emergencyOnly={emergencyOnly}
-              onPress={() => navigation.navigate('WorkerDetail', { workerId: worker.workerId, isEmergency: emergencyOnly })}
-              onBook={() => navigation.navigate('BookingCreate', { worker, isEmergency: emergencyOnly })}
+              onPress={() =>
+                navigation.navigate('WorkerDetail', {
+                  workerId: worker.workerId,
+                  isEmergency: emergencyOnly,
+                  requestedDate: route.params?.requestedDate,
+                  requestedTime: route.params?.requestedTime,
+                  isAlternativeSuggestion: Boolean(route.params?.alternativeBanner),
+                  originalWorkerName: route.params?.originalWorkerName,
+                })
+              }
+              onBook={() =>
+                navigation.navigate('BookingCreate', {
+                  worker,
+                  isEmergency: emergencyOnly,
+                  requestedDate: route.params?.requestedDate,
+                  requestedTime: route.params?.requestedTime,
+                  isAlternativeSuggestion: Boolean(route.params?.alternativeBanner),
+                  originalWorkerName: route.params?.originalWorkerName,
+                })
+              }
             />
           ))
         )}
@@ -328,5 +362,30 @@ const createStyles = (colors: Palette) => StyleSheet.create({
     color: colors.danger,
     opacity: 0.88,
     marginTop: 1,
-  }
+  },
+  alternativeActiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1.5,
+    borderColor: '#10b981',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  alternativeActiveTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#047857',
+  },
+  alternativeActiveDesc: {
+    fontSize: 11.5,
+    color: '#065f46',
+    marginTop: 2,
+    lineHeight: 16,
+  },
 });

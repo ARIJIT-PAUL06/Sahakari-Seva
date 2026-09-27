@@ -168,7 +168,15 @@
     "error_title": "خرابی",
     "confirmed_title": "بکنگ کنفرم ہو گئی! 🎉",
     "confirmed_msg": "بکنگ {{code}} {{name}} کو بھیج دی گئی۔ AI پیشین گوئی میں درج!",
-    "view_bookings": "بکنگز دیکھیں"
+    "view_bookings": "بکنگز دیکھیں",
+    "slot_busy_title": "اس وقت کاریگر مصروف ہے",
+    "slot_busy_desc": "{{name}} اس وقت {{date}} کو {{time}} پر کسی دوسرے کام میں مصروف ہیں۔ براہ کرم کوئی دوسرا وقت منتخب کریں یا قریبی متبادل کاریگر تلاش کریں۔",
+    "select_different_time": "مختلف وقت کا انتخاب کریں",
+    "find_closest_alternative": "قریبی متبادل کاریگر تلاش کریں",
+    "closest_alternative_title": "قریب ترین متبادل کاریگر",
+    "closest_alternative_banner": "یہ آپ کے مطلوبہ وقت پر دستیاب سب سے قریبی تصدیق شدہ کاریگر ہیں۔ آپ ابھی بک کر سکتے ہیں!",
+    "slot_available": "دستیاب",
+    "slot_booked": "بک ہے"
   },
   "bookingDetail": {
     "title": "بکنگ کی تفصیلات",

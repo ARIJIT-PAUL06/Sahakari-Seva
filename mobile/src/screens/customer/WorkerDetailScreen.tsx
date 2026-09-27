@@ -194,7 +194,18 @@ export const WorkerDetailScreen: React.FC<{ route: any; navigation: any }> = ({ 
             ₹{isEmergency ? Math.round(worker.hourly_or_base_rate * 1.25) : worker.hourly_or_base_rate} {t('workerDetail.per_hr')}
           </Text>
         </View>
-        <ScalePressable onPress={() => navigation.navigate('BookingCreate', { worker, isEmergency })}>
+        <ScalePressable
+          onPress={() =>
+            navigation.navigate('BookingCreate', {
+              worker,
+              isEmergency,
+              requestedDate: route?.params?.requestedDate,
+              requestedTime: route?.params?.requestedTime,
+              isAlternativeSuggestion: route?.params?.isAlternativeSuggestion,
+              originalWorkerName: route?.params?.originalWorkerName,
+            })
+          }
+        >
           <View style={[styles.bookNowBtn, isEmergency && styles.bookNowBtnEmergency]}>
             <Zap size={16} color={colors.textInverse} />
             <Text style={styles.bookNowBtnText}>

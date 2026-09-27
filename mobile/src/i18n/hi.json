@@ -168,7 +168,15 @@
     "awaiting_short": "प्रतीक्षारत",
     "confirmed_title": "बुकिंग पुष्ट! 🎉",
     "confirmed_msg": "बुकिंग {{code}} की {{name}} द्वारा पुष्टि कर दी गई है।",
-    "view_bookings": "बुकिंग देखें"
+    "view_bookings": "बुकिंग देखें",
+    "slot_busy_title": "कारीगर इस समय स्लॉट में व्यस्त हैं",
+    "slot_busy_desc": "{{name}} पहले से ही {{date}} को {{time}} पर एक सक्रिय कार्य में व्यस्त हैं। कृपया दूसरा समय चुनें या निकटतम वैकल्पिक कारीगर खोजें।",
+    "select_different_time": "दूसरा समय स्लॉट चुनें",
+    "find_closest_alternative": "निकटतम विकल्प खोजें",
+    "closest_alternative_title": "निकटतम वैकल्पिक कारीगर",
+    "closest_alternative_banner": "यह आपके चुने हुए समय पर उपलब्ध निकटतम सत्यापित कारीगर हैं। आप अभी बुक कर सकते हैं!",
+    "slot_available": "उपलब्ध",
+    "slot_booked": "बुक किया गया"
   },
   "bookingDetail": {
     "loading": "बुकिंग विवरण लोड हो रहा है...",

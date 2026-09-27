@@ -168,7 +168,15 @@
     "error_title": "ਗਲਤੀ",
     "confirmed_title": "ਬੁਕਿੰਗ ਦੀ ਪੁਸ਼ਟੀ ਹੋ ਗਈ! 🎉",
     "confirmed_msg": "ਬੁਕਿੰਗ {{code}} {{name}} ਨੂੰ ਭੇਜੀ ਗਈ। AI ਅਨੁਮਾਨ ਲਈ ਦਰਜ!",
-    "view_bookings": "ਬੁਕਿੰਗਾਂ ਵੇਖੋ"
+    "view_bookings": "ਬੁਕਿੰਗਾਂ ਵੇਖੋ",
+    "slot_busy_title": "ਇਸ ਸਮੇਂ ਕਾਰੀਗਰ ਰੁੱਝਿਆ ਹੋਇਆ ਹੈ",
+    "slot_busy_desc": "{{name}} ਇਸ ਵੇਲੇ {{date}} ਨੂੰ {{time}} 'ਤੇ ਕਿਸੇ ਹੋਰ ਕੰਮ ਵਿੱਚ ਰੁੱਝਿਆ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਕੋਈ ਹੋਰ ਸਮਾਂ ਚੁਣੋ ਜਾਂ ਨੇੜਲਾ ਹੋਰ ਕਾਰੀਗਰ ਲੱਭੋ।",
+    "select_different_time": "ਹੋਰ ਸਮਾਂ ਸਲਾਟ ਚੁਣੋ",
+    "find_closest_alternative": "ਨੇੜਲਾ ਬਦਲਵਾਂ ਕਾਰੀਗਰ ਲੱਭੋ",
+    "closest_alternative_title": "ਸਭ ਤੋਂ ਨੇੜਲਾ ਬਦਲਵਾਂ ਕਾਰੀਗਰ",
+    "closest_alternative_banner": "ਇਹ ਤੁਹਾਡੇ ਚੁਣੇ ਸਮੇਂ 'ਤੇ ਉਪਲਬਧ ਸਭ ਤੋਂ ਨੇੜਲਾ ਪ੍ਰਮਾਣਿਤ ਕਾਰੀਗਰ ਹੈ। ਤੁਸੀਂ ਹੁਣੇ ਬੁੱਕ ਕਰ ਸਕਦੇ ਹੋ!",
+    "slot_available": "ਉਪਲਬਧ",
+    "slot_booked": "ਬੁੱਕ ਹੈ"
   },
   "bookingDetail": {
     "title": "ਬੁਕਿੰਗ ਵੇਰਵੇ",

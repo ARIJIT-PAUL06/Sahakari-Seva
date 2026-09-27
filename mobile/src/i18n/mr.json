@@ -162,7 +162,15 @@
     "error_title": "त्रुटी",
     "confirmed_title": "बुकिंग पुष्टी! 🎉",
     "confirmed_msg": "बुकिंग {{code}} {{name}} यांना पाठवली. AI अंदाजासाठी मागणी घटना नोंदवली!",
-    "view_bookings": "बुकिंग पहा"
+    "view_bookings": "बुकिंग पहा",
+    "slot_busy_title": "या वेळेच्या स्लॉटमध्ये कारागीर व्यस्त आहेत",
+    "slot_busy_desc": "{{name}} आधीपासूनच {{date}} रोजी {{time}} वाजता एका कामात व्यस्त आहेत. कृपया दुसरी वेळ निवडा किंवा जवळचा पर्यायी कारागीर शोधा.",
+    "select_different_time": "दुसरी वेळ निवडा",
+    "find_closest_alternative": "जवळचा पर्याय शोधा",
+    "closest_alternative_title": "जवळचा पर्यायी कारागीर",
+    "closest_alternative_banner": "हे तुमच्या विनंती केलेल्या वेळेवर उपलब्ध सर्वात जवळचे प्रमाणित व्यावसायिक आहेत. तुम्ही आता बुक करू शकता!",
+    "slot_available": "उपलब्ध",
+    "slot_booked": "बुक केले"
   },
   "bookingDetail": {
     "loading": "बुकिंग तपशील लोड होत आहे...",
