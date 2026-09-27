@@ -886,7 +886,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                             accessibilityRole="button"
                             accessibilityLabel={`Book ${w.workerName}`}
                           >
-                            <Text style={styles.workerBookBtnText}>⚡ Book ₹{w.hourlyRate} →</Text>
+                            <Text style={styles.workerBookBtnText}>Book ₹{w.hourlyRate} →</Text>
                           </ScalePressable>
                         </View>
                       ))}

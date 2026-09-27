@@ -655,30 +655,6 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Booking Dispatch Mode Pill */}
-          <View
-            style={[
-              styles.dispatchModePill,
-              isAdvanceScheduled ? styles.dispatchModePillAdvance : styles.dispatchModePillLive,
-            ]}
-          >
-            <View
-              style={[
-                styles.dispatchModeDot,
-                isAdvanceScheduled ? styles.dispatchModeDotAdvance : styles.dispatchModeDotLive,
-              ]}
-            />
-            <Text
-              style={[
-                styles.dispatchModeText,
-                isAdvanceScheduled ? styles.dispatchModeTextAdvance : styles.dispatchModeTextLive,
-              ]}
-            >
-              {isAdvanceScheduled
-                ? `📅 Advance Scheduled Booking (Dispatches 3h before appointment)`
-                : `⚡ Live 3-Day Dispatch Window (Instant Alert to ${worker.name?.split(' ')[0] || 'Worker'})`}
-            </Text>
-          </View>
 
           {/* Month Navigation Strip */}
           <View style={styles.monthNavStrip}>

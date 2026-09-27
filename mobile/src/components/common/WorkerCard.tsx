@@ -95,7 +95,6 @@ export const WorkerCard: React.FC<WorkerCardProps> = ({ worker, onPress, onBook,
               </View>
               {/* Soft Mint Match Score Chip */}
               <View style={styles.matchScoreBadge}>
-                <Sparkles size={11} color="#087F5B" />
                 <Text style={styles.scoreText} numberOfLines={1}>
                   {t('common.match', { score: worker.matchScore })}
                 </Text>
@@ -106,9 +105,8 @@ export const WorkerCard: React.FC<WorkerCardProps> = ({ worker, onPress, onBook,
               <View
                 style={[styles.bookBtn, isEmergencyActive && styles.bookBtnEmergency]}
               >
-                <Zap size={11} color="#ffffff" />
                 <Text style={styles.bookBtnText} numberOfLines={1}>
-                  {isEmergencyActive ? `Emergency ₹${emergencyRate} →` : `⚡ Book ₹${worker.hourly_rate} →`}
+                  {isEmergencyActive ? `Emergency ₹${emergencyRate} →` : `Book ₹${worker.hourly_rate} →`}
                 </Text>
               </View>
             </ScalePressable>
