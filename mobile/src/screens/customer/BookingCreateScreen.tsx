@@ -14,6 +14,9 @@ import {
   Alert,
   ActivityIndicator,
   DeviceEventEmitter,
+  Platform,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Header } from '../../components/common/Header';
@@ -53,6 +56,9 @@ const HOURS_LIST = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', 
 const MINUTES_LIST = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 const PERIODS_LIST = ['AM', 'PM'];
 const MINUTE_PRESETS = ['00', '15', '30', '45'];
+
+const CLOCK_ITEM_HEIGHT = 44;
+const CLOCK_WHEEL_HEIGHT = 132; // 3 visible rows (44px * 3)
 
 const getTodayDate = () => {
   const now = new Date();
@@ -143,15 +149,75 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
 
   const hourScrollRef = useRef<ScrollView>(null);
   const minuteScrollRef = useRef<ScrollView>(null);
+  const hourScrollTimeoutRef = useRef<any>(null);
+  const minuteScrollTimeoutRef = useRef<any>(null);
 
   const handleSelectHour = (h: string, index: number) => {
     setSelectedHour(h);
-    hourScrollRef.current?.scrollTo({ y: Math.max(0, index * 38), animated: true });
+    hourScrollRef.current?.scrollTo({ y: Math.max(0, index * CLOCK_ITEM_HEIGHT), animated: true });
   };
 
   const handleSelectMinute = (m: string, index: number) => {
     setSelectedMinute(m);
-    minuteScrollRef.current?.scrollTo({ y: Math.max(0, index * 38), animated: true });
+    minuteScrollRef.current?.scrollTo({ y: Math.max(0, index * CLOCK_ITEM_HEIGHT), animated: true });
+  };
+
+  const onHourScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const rawIndex = Math.round(y / CLOCK_ITEM_HEIGHT);
+    const clampedIndex = Math.max(0, Math.min(HOURS_LIST.length - 1, rawIndex));
+    const h = HOURS_LIST[clampedIndex];
+    if (h && h !== selectedHour) {
+      setSelectedHour(h);
+    }
+
+    if (Platform.OS === 'web') {
+      if (hourScrollTimeoutRef.current) clearTimeout(hourScrollTimeoutRef.current);
+      hourScrollTimeoutRef.current = setTimeout(() => {
+        const snapY = clampedIndex * CLOCK_ITEM_HEIGHT;
+        if (Math.abs(y - snapY) > 1) {
+          hourScrollRef.current?.scrollTo({ y: snapY, animated: true });
+        }
+      }, 120);
+    }
+  };
+
+  const onHourScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const rawIndex = Math.round(y / CLOCK_ITEM_HEIGHT);
+    const clampedIndex = Math.max(0, Math.min(HOURS_LIST.length - 1, rawIndex));
+    const snapY = clampedIndex * CLOCK_ITEM_HEIGHT;
+    hourScrollRef.current?.scrollTo({ y: snapY, animated: true });
+    setSelectedHour(HOURS_LIST[clampedIndex]);
+  };
+
+  const onMinuteScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const rawIndex = Math.round(y / CLOCK_ITEM_HEIGHT);
+    const clampedIndex = Math.max(0, Math.min(MINUTES_LIST.length - 1, rawIndex));
+    const m = MINUTES_LIST[clampedIndex];
+    if (m && m !== selectedMinute) {
+      setSelectedMinute(m);
+    }
+
+    if (Platform.OS === 'web') {
+      if (minuteScrollTimeoutRef.current) clearTimeout(minuteScrollTimeoutRef.current);
+      minuteScrollTimeoutRef.current = setTimeout(() => {
+        const snapY = clampedIndex * CLOCK_ITEM_HEIGHT;
+        if (Math.abs(y - snapY) > 1) {
+          minuteScrollRef.current?.scrollTo({ y: snapY, animated: true });
+        }
+      }, 120);
+    }
+  };
+
+  const onMinuteScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const rawIndex = Math.round(y / CLOCK_ITEM_HEIGHT);
+    const clampedIndex = Math.max(0, Math.min(MINUTES_LIST.length - 1, rawIndex));
+    const snapY = clampedIndex * CLOCK_ITEM_HEIGHT;
+    minuteScrollRef.current?.scrollTo({ y: snapY, animated: true });
+    setSelectedMinute(MINUTES_LIST[clampedIndex]);
   };
 
   // Parse initial time if given from route
@@ -352,7 +418,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
     setSelectedMinute(formatted);
     const idx = MINUTES_LIST.indexOf(formatted);
     if (idx !== -1) {
-      minuteScrollRef.current?.scrollTo({ y: Math.max(0, idx * 38), animated: true });
+      minuteScrollRef.current?.scrollTo({ y: Math.max(0, idx * CLOCK_ITEM_HEIGHT), animated: true });
     }
   };
 
@@ -361,13 +427,13 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
     const hIdx = HOURS_LIST.indexOf(selectedHour);
     if (hIdx !== -1) {
       setTimeout(() => {
-        hourScrollRef.current?.scrollTo({ y: Math.max(0, hIdx * 38), animated: false });
+        hourScrollRef.current?.scrollTo({ y: Math.max(0, hIdx * CLOCK_ITEM_HEIGHT), animated: false });
       }, 150);
     }
     const mIdx = MINUTES_LIST.indexOf(selectedMinute);
     if (mIdx !== -1) {
       setTimeout(() => {
-        minuteScrollRef.current?.scrollTo({ y: Math.max(0, mIdx * 38), animated: false });
+        minuteScrollRef.current?.scrollTo({ y: Math.max(0, mIdx * CLOCK_ITEM_HEIGHT), animated: false });
       }, 150);
     }
   }, []);
@@ -378,9 +444,9 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
     setSelectedMinute('00');
     setSelectedPeriod('PM');
     const hIdx = HOURS_LIST.indexOf('02');
-    if (hIdx !== -1) hourScrollRef.current?.scrollTo({ y: hIdx * 38, animated: true });
+    if (hIdx !== -1) hourScrollRef.current?.scrollTo({ y: hIdx * CLOCK_ITEM_HEIGHT, animated: true });
     const mIdx = MINUTES_LIST.indexOf('00');
-    if (mIdx !== -1) minuteScrollRef.current?.scrollTo({ y: mIdx * 38, animated: true });
+    if (mIdx !== -1) minuteScrollRef.current?.scrollTo({ y: mIdx * CLOCK_ITEM_HEIGHT, animated: true });
   };
 
   const handleToggleEmergency = (val: boolean) => {
@@ -735,10 +801,9 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
 
           {!isEmergency ? (
             <View style={styles.alarmPickerCard}>
-              {/* Digital Alarm Time Display Readout */}
+              {/* Digital Alarm Time Display Readout (No clock icon before time) */}
               <View style={styles.digitalReadoutRow}>
                 <View style={styles.digitalReadoutBadge}>
-                  <Text style={styles.digitalClockIcon}>⏰</Text>
                   <Text style={styles.digitalReadoutTime}>{time}</Text>
                 </View>
 
@@ -765,85 +830,135 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
                 </View>
               </View>
 
-              {/* Alarm Wheels Container (Hours | Minutes | AM/PM) */}
-              <View style={styles.alarmWheelsContainer}>
-                {/* Center Magnifying Highlight Bar */}
-                <View pointerEvents="none" style={styles.alarmCenterHighlight} />
-
-                {/* Column 1: Hours */}
-                <View style={styles.alarmWheelCol}>
-                  <Text style={styles.alarmColHeader}>HOUR</Text>
-                  <ScrollView
-                    ref={hourScrollRef}
-                    style={styles.alarmScrollColumn}
-                    contentContainerStyle={styles.alarmScrollContent}
-                    showsVerticalScrollIndicator={false}
-                    snapToInterval={38}
-                    decelerationRate="fast"
-                  >
-                    {HOURS_LIST.map((h, idx) => {
-                      const isSel = selectedHour === h;
-                      return (
-                        <TouchableOpacity
-                          key={h}
-                          style={[styles.alarmItemRow, isSel && styles.alarmItemRowSelected]}
-                          onPress={() => handleSelectHour(h, idx)}
-                          activeOpacity={0.7}
-                        >
-                          <Text
-                            style={[
-                              styles.alarmItemText,
-                              isSel && styles.alarmItemTextSelected,
-                            ]}
-                          >
-                            {h}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+              {/* Column Headers Row (Dedicated row above wheels for exact alignment) */}
+              <View style={styles.alarmHeadersRow}>
+                <View style={styles.alarmHeadersTimeGroup}>
+                  <Text style={[styles.alarmColHeader, { flex: 1, textAlign: 'center' }]}>HOUR</Text>
+                  <View style={{ width: 14 }} />
+                  <Text style={[styles.alarmColHeader, { flex: 1, textAlign: 'center' }]}>MINUTE</Text>
                 </View>
-
-                {/* Column Divider */}
-                <Text style={styles.alarmColonDivider}>:</Text>
-
-                {/* Column 2: Minutes (Full 00-59 with Exact Minute Precision) */}
-                <View style={styles.alarmWheelCol}>
-                  <Text style={styles.alarmColHeader}>MINUTE</Text>
-                  <ScrollView
-                    ref={minuteScrollRef}
-                    style={styles.alarmScrollColumn}
-                    contentContainerStyle={styles.alarmScrollContent}
-                    showsVerticalScrollIndicator={false}
-                    snapToInterval={38}
-                    decelerationRate="fast"
-                  >
-                    {MINUTES_LIST.map((m, idx) => {
-                      const isSel = selectedMinute === m;
-                      return (
-                        <TouchableOpacity
-                          key={m}
-                          style={[styles.alarmItemRow, isSel && styles.alarmItemRowSelected]}
-                          onPress={() => handleSelectMinute(m, idx)}
-                          activeOpacity={0.7}
-                        >
-                          <Text
-                            style={[
-                              styles.alarmItemText,
-                              isSel && styles.alarmItemTextSelected,
-                            ]}
-                          >
-                            {m}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-
-                {/* Column 3: AM / PM */}
-                <View style={[styles.alarmWheelCol, { flex: 0.85 }]}>
+                <View style={{ width: 76, alignItems: 'center' }}>
                   <Text style={styles.alarmColHeader}>AM / PM</Text>
+                </View>
+              </View>
+
+              {/* Alarm Wheels & AM/PM Container */}
+              <View style={styles.alarmWheelsContainer}>
+                {/* Left Section: Time Wheels (Hour & Minute snapping to central green bar) */}
+                <View style={styles.timeWheelsSection}>
+                  {/* Center Tactile Green Highlight Bar (Snapping Target) */}
+                  <View pointerEvents="none" style={styles.alarmCenterHighlight} />
+
+                  {/* Column 1: Hours */}
+                  <View style={styles.alarmWheelCol}>
+                    <ScrollView
+                      ref={hourScrollRef}
+                      style={[
+                        styles.alarmScrollColumn,
+                        Platform.OS === 'web' && ({
+                          scrollSnapType: 'y mandatory',
+                          WebkitOverflowScrolling: 'touch',
+                        } as any),
+                      ]}
+                      contentContainerStyle={styles.alarmScrollContent}
+                      showsVerticalScrollIndicator={false}
+                      snapToInterval={CLOCK_ITEM_HEIGHT}
+                      snapToAlignment="start"
+                      decelerationRate="fast"
+                      scrollEventThrottle={16}
+                      onScroll={onHourScroll}
+                      onMomentumScrollEnd={onHourScrollEnd}
+                      onScrollEndDrag={onHourScrollEnd}
+                    >
+                      {HOURS_LIST.map((h, idx) => {
+                        const isSel = selectedHour === h;
+                        return (
+                          <TouchableOpacity
+                            key={h}
+                            style={[
+                              styles.alarmItemRow,
+                              isSel && styles.alarmItemRowSelected,
+                              Platform.OS === 'web' && ({
+                                scrollSnapAlign: 'center',
+                                scrollSnapStop: 'always',
+                              } as any),
+                            ]}
+                            onPress={() => handleSelectHour(h, idx)}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.alarmItemText,
+                                isSel && styles.alarmItemTextSelected,
+                              ]}
+                            >
+                              {h}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+
+                  {/* Column Divider */}
+                  <View style={styles.alarmColonWrap}>
+                    <Text style={styles.alarmColonDivider}>:</Text>
+                  </View>
+
+                  {/* Column 2: Minutes (Full 00-59 with Exact Minute Precision) */}
+                  <View style={styles.alarmWheelCol}>
+                    <ScrollView
+                      ref={minuteScrollRef}
+                      style={[
+                        styles.alarmScrollColumn,
+                        Platform.OS === 'web' && ({
+                          scrollSnapType: 'y mandatory',
+                          WebkitOverflowScrolling: 'touch',
+                        } as any),
+                      ]}
+                      contentContainerStyle={styles.alarmScrollContent}
+                      showsVerticalScrollIndicator={false}
+                      snapToInterval={CLOCK_ITEM_HEIGHT}
+                      snapToAlignment="start"
+                      decelerationRate="fast"
+                      scrollEventThrottle={16}
+                      onScroll={onMinuteScroll}
+                      onMomentumScrollEnd={onMinuteScrollEnd}
+                      onScrollEndDrag={onMinuteScrollEnd}
+                    >
+                      {MINUTES_LIST.map((m, idx) => {
+                        const isSel = selectedMinute === m;
+                        return (
+                          <TouchableOpacity
+                            key={m}
+                            style={[
+                              styles.alarmItemRow,
+                              isSel && styles.alarmItemRowSelected,
+                              Platform.OS === 'web' && ({
+                                scrollSnapAlign: 'center',
+                                scrollSnapStop: 'always',
+                              } as any),
+                            ]}
+                            onPress={() => handleSelectMinute(m, idx)}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.alarmItemText,
+                                isSel && styles.alarmItemTextSelected,
+                              ]}
+                            >
+                              {m}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                </View>
+
+                {/* Right Section: AM / PM Column (Fixed, perfectly proportioned, no green bar collision) */}
+                <View style={styles.periodCol}>
                   <View style={styles.periodPickerWrap}>
                     {PERIODS_LIST.map((p) => {
                       const isSel = selectedPeriod === p;
@@ -855,7 +970,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
                             isSel && styles.periodButtonSelected,
                           ]}
                           onPress={() => setSelectedPeriod(p)}
-                          activeOpacity={0.8}
+                          activeOpacity={0.75}
                         >
                           <Text
                             style={[
@@ -1550,13 +1665,9 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     digitalReadoutBadge: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-    },
-    digitalClockIcon: {
-      fontSize: 16,
     },
     digitalReadoutTime: {
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: '900',
       color: colors.primary,
       letterSpacing: 0.5,
@@ -1600,20 +1711,43 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     slotStatusTagPillTextBusy: {
       color: '#b45309',
     },
+    alarmHeadersRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      marginBottom: 6,
+    },
+    alarmHeadersTimeGroup: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    alarmColHeader: {
+      fontSize: 10.5,
+      fontWeight: '800',
+      color: colors.textMuted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+    },
     alarmWheelsContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-around',
+      height: 132,
+      paddingHorizontal: 4,
+    },
+    timeWheelsSection: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
       position: 'relative',
-      height: 150,
-      paddingHorizontal: 8,
+      height: 132,
     },
     alarmCenterHighlight: {
       position: 'absolute',
-      left: 0,
-      right: 0,
-      top: 55,
-      height: 40,
+      left: 2,
+      right: 2,
+      top: 44,
+      height: 44,
       borderRadius: 10,
       backgroundColor: isDark ? 'rgba(8, 127, 91, 0.18)' : '#e8f7f1',
       borderWidth: 1.5,
@@ -1622,15 +1756,7 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     alarmWheelCol: {
       flex: 1,
       alignItems: 'center',
-      height: '100%',
-    },
-    alarmColHeader: {
-      fontSize: 10,
-      fontWeight: '800',
-      color: colors.textMuted,
-      marginBottom: 4,
-      letterSpacing: 0.5,
-      textTransform: 'uppercase',
+      height: 132,
     },
     alarmScrollColumn: {
       flex: 1,
@@ -1638,13 +1764,14 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     },
     alarmScrollContent: {
       alignItems: 'center',
-      paddingVertical: 10,
+      paddingTop: 44,
+      paddingBottom: 44,
     },
     alarmItemRow: {
-      height: 38,
+      height: 44,
       alignItems: 'center',
       justifyContent: 'center',
-      width: '80%',
+      width: '85%',
       borderRadius: 8,
     },
     alarmItemRowSelected: {
@@ -1656,44 +1783,65 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       color: colors.textSecondary,
     },
     alarmItemTextSelected: {
-      fontSize: 18,
+      fontSize: 19,
       fontWeight: '900',
       color: colors.primary,
+    },
+    alarmColonWrap: {
+      width: 14,
+      height: 132,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2,
     },
     alarmColonDivider: {
       fontSize: 22,
       fontWeight: '900',
       color: colors.primary,
-      paddingBottom: 15,
-      paddingHorizontal: 4,
+      lineHeight: 26,
+    },
+    periodCol: {
+      width: 68,
+      height: 132,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 8,
+      paddingLeft: 8,
+      borderLeftWidth: 1,
+      borderLeftColor: isDark ? 'rgba(255, 255, 255, 0.1)' : colors.border,
     },
     periodPickerWrap: {
-      flex: 1,
+      width: '100%',
       justifyContent: 'center',
+      alignItems: 'center',
       gap: 8,
-      width: '85%',
     },
     periodButton: {
-      paddingVertical: 8,
-      paddingHorizontal: 12,
+      width: '100%',
+      height: 38,
       borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: isDark ? 'rgba(255, 255, 255, 0.14)' : colors.border,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : colors.surface,
       alignItems: 'center',
       justifyContent: 'center',
     },
     periodButtonSelected: {
       backgroundColor: colors.primary,
       borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 3,
     },
     periodButtonText: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: '700',
-      color: colors.textPrimary,
+      color: colors.textSecondary,
     },
     periodButtonTextSelected: {
-      color: colors.textInverse,
+      color: '#ffffff',
       fontWeight: '900',
     },
     presetChipsRow: {
