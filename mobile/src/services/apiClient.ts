@@ -374,50 +374,67 @@ export class ApiClient {
         (await DatabaseService.profiles.getCustomerProfile(bookingPayload.customer_id)) ||
         MOCK_CUSTOMERS.find(c => c.id === bookingPayload.customer_id);
 
+      const isAdvance = Boolean(bookingPayload.is_advance_scheduled);
+      const autoDispatchTime = isAdvance
+        ? (bookingPayload.auto_dispatch_time || this.calculate3HoursPrior(bookingPayload.booking_time))
+        : undefined;
+
       const booking: Booking = {
         id: 'bk-' + Date.now(),
         booking_code: 'BK-2026-' + Math.floor(1000 + Math.random() * 9000),
         cooperative_id: 'c0000000-0000-0000-0000-000000000001',
-        status: 'pending',
+        status: isAdvance ? 'scheduled' : 'pending',
         payment_status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         ...bookingPayload,
+        is_advance_scheduled: isAdvance,
+        auto_dispatch_lead_hours: isAdvance ? 3 : 0,
+        auto_dispatch_time: autoDispatchTime,
         worker: workerInfo,
         customer: customerInfo,
       } as any;
 
       const created = await DatabaseService.bookings.insert(booking);
 
+      // Customer Notification
       await DatabaseService.notifications.insert({
         id: 'notif-c-' + Date.now(),
         user_id: bookingPayload.customer_id || 'p0000000-0000-0000-0000-000000000002',
-        type: (booking.is_emergency ? 'emergency' : 'booking') as any,
+        type: (booking.is_emergency ? 'emergency' : isAdvance ? 'system' : 'booking') as any,
         title: booking.is_emergency
           ? `🚨 EMERGENCY DISPATCH REQUESTED! ⚡ (${booking.booking_code})`
+          : isAdvance
+          ? `📅 Advance Booking Scheduled! (${booking.booking_code})`
           : `Booking Requested! 📋 (${booking.booking_code})`,
         message: booking.is_emergency
           ? `Urgent 24/7 emergency dispatch requested for ${workerInfo?.profile?.full_name || (workerInfo as any)?.name || 'Worker'} (< 15-30 min arrival). Worker alerted with SOS priority.`
+          : isAdvance
+          ? `Your advance booking for ${workerInfo?.profile?.full_name || (workerInfo as any)?.name || 'Worker'} on ${booking.booking_date} at ${booking.booking_time} has been scheduled. Automated dispatch will verify availability and alert the professional 3 hours before (${autoDispatchTime || '3 hours prior'}).`
           : `Your booking request for ${workerInfo?.profile?.full_name || (workerInfo as any)?.name || 'Worker'} on ${booking.booking_date || 'scheduled date'} at ${booking.booking_time || '10:00 AM'} has been sent. Awaiting worker confirmation.`,
         read: false,
         action_url: '/bookings',
         created_at: new Date().toISOString(),
       }, 'customer');
 
-      await DatabaseService.notifications.insert({
-        id: 'notif-w-' + Date.now(),
-        user_id: bookingPayload.worker_id || 'w0000000-0000-0000-0000-000000000001',
-        type: (booking.is_emergency ? 'emergency' : 'booking') as any,
-        title: booking.is_emergency
-          ? `🚨 EMERGENCY SOS JOB REQUEST! ⚡ (${booking.booking_code})`
-          : `New Job Request! 📋 (${booking.booking_code})`,
-        message: booking.is_emergency
-          ? `URGENT: 24/7 Emergency SOS requested by ${customerInfo?.full_name || 'Customer'}. Dispatch SLA: < 15-30 mins! +25% Emergency Rate Bonus applied.`
-          : `New booking requested by ${customerInfo?.full_name || 'Customer'} for ${booking.booking_date || 'scheduled date'} at ${booking.booking_time || '10:00 AM'}. Tap to accept or review.`,
-        read: false,
-        action_url: '/jobs',
-        created_at: new Date().toISOString(),
-      }, 'worker');
+      // Worker Notification: Only sent immediately for live 3-day window bookings (< 3 days) or emergency.
+      // Advance bookings are queued and dispatched 3 hours before the slot.
+      if (!isAdvance) {
+        await DatabaseService.notifications.insert({
+          id: 'notif-w-' + Date.now(),
+          user_id: bookingPayload.worker_id || 'w0000000-0000-0000-0000-000000000001',
+          type: (booking.is_emergency ? 'emergency' : 'booking') as any,
+          title: booking.is_emergency
+            ? `🚨 EMERGENCY SOS JOB REQUEST! ⚡ (${booking.booking_code})`
+            : `New Job Request! 📋 (${booking.booking_code})`,
+          message: booking.is_emergency
+            ? `URGENT: 24/7 Emergency SOS requested by ${customerInfo?.full_name || 'Customer'}. Dispatch SLA: < 15-30 mins! +25% Emergency Rate Bonus applied.`
+            : `New booking requested by ${customerInfo?.full_name || 'Customer'} for ${booking.booking_date || 'scheduled date'} at ${booking.booking_time || '10:00 AM'}. Tap to accept or review.`,
+          read: false,
+          action_url: '/jobs',
+          created_at: new Date().toISOString(),
+        }, 'worker');
+      }
 
       DeviceEventEmitter.emit('app_booking_updated');
       return created;
@@ -427,6 +444,37 @@ export class ApiClient {
   public static isPrepaidViolation(booking: Booking | null | undefined): boolean {
     if (!booking) return false;
     return booking.payment_status === 'paid' && (booking.status === 'pending' || booking.status === 'accepted');
+  }
+
+  /**
+   * Calculates the day difference between target date string (YYYY-MM-DD) and today.
+   * 0 = today, 1 = tomorrow, 2 = day after tomorrow, >= 3 = advance scheduled
+   */
+  public static getDayDifferenceFromToday(targetDateStr?: string): number {
+    if (!targetDateStr) return 0;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const parts = targetDateStr.split('-').map(Number);
+    if (parts.length !== 3) return 0;
+    const target = new Date(parts[0], parts[1] - 1, parts[2]);
+    const diffTime = target.getTime() - today.getTime();
+    return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  /**
+   * Calculates the automated dispatch time (3 hours before scheduled appointment)
+   */
+  public static calculate3HoursPrior(timeStr?: string): string {
+    if (!timeStr) return '3 hours before appointment';
+    const totalMins = this.parseTimeToMinutes(timeStr);
+    if (totalMins === null) return '3 hours before appointment';
+    let dispatchMins = totalMins - 180; // 3 hours = 180 mins
+    if (dispatchMins < 0) dispatchMins += 1440;
+    const h24 = Math.floor(dispatchMins / 60);
+    const m = dispatchMins % 60;
+    const ampm = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
   }
 
   /**

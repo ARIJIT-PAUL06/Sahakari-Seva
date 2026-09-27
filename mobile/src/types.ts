@@ -5,7 +5,7 @@
 export type UserRole = 'customer' | 'worker' | 'admin';
 export type AvailabilityStatus = 'available' | 'busy' | 'offline' | 'emergency_only';
 export type VerificationStatus = 'pending' | 'verified' | 'rejected';
-export type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'in_progress' | 'completed';
+export type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'in_progress' | 'completed' | 'scheduled';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export interface CustomerAddress {
@@ -196,6 +196,10 @@ export interface Booking {
   completion_requested_at?: string;
   completion_code?: string;
   completion_qr_payload?: string;
+
+  is_advance_scheduled?: boolean;
+  auto_dispatch_lead_hours?: number;
+  auto_dispatch_time?: string;
 
   customer?: Profile;
   worker?: Worker;

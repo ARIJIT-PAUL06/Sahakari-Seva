@@ -38,6 +38,7 @@ import {
 import { useTheme } from '../../theme';
 import type { Palette } from '../../theme';
 import type { Booking } from '../../types';
+import { ApiClient } from '../../services/apiClient';
 
 interface BookingConfirmedModalProps {
   visible: boolean;
@@ -95,6 +96,7 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
   const stepperPulse = useRef(new Animated.Value(1)).current;
 
   const isEmergency = !!booking?.is_emergency;
+  const isAdvance = !!booking?.is_advance_scheduled;
   const isConfirmed = booking?.status === 'accepted' || booking?.status === 'in_progress' || booking?.status === 'completed';
   const bookingCode = booking?.booking_code || (isConfirmed ? 'BK-2026-CONFIRMED' : 'BK-2026-REQUESTED');
   const workerName = worker?.name || booking?.worker?.profile?.full_name || (booking?.worker as any)?.name || 'Assigned Professional';
@@ -102,6 +104,7 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
   const workerRating = worker?.rating || worker?.average_rating || 4.9;
   const bookingDate = booking?.booking_date || 'Today';
   const bookingTime = booking?.booking_time || '10:00 AM';
+  const autoDispatchLead = booking?.auto_dispatch_time || ApiClient.calculate3HoursPrior(bookingTime);
   const finalAmount = booking?.final_amount || worker?.hourly_rate || 249;
   const workerCut = Math.round(finalAmount * 0.85);
 
@@ -479,6 +482,8 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
               <Text style={styles.titleText}>
                 {isEmergency
                   ? (isConfirmed ? '🚨 Emergency Dispatch Confirmed! ⚡' : '🚨 Emergency SOS Sent!')
+                  : isAdvance
+                  ? '📅 Advance Booking Scheduled! ⏳'
                   : isConfirmed
                   ? (t('booking.confirmed_title') || 'Booking Confirmed! 🎉')
                   : (t('booking.requested_title') || 'Booking Requested! 📋')}
@@ -489,6 +494,8 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
                   styles.orderCodeBadge,
                   isEmergency
                     ? styles.orderCodeBadgeEmergency
+                    : isAdvance
+                    ? { backgroundColor: '#f0f9ff', borderColor: '#38bdf8' }
                     : !isConfirmed && styles.orderCodeBadgeRequested,
                 ]}
               >
@@ -496,6 +503,8 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
                   style={
                     isEmergency
                       ? styles.liveRedDot
+                      : isAdvance
+                      ? { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#0284c7' }
                       : isConfirmed
                       ? styles.liveGreenDot
                       : styles.liveAmberDot
@@ -506,12 +515,16 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
                     styles.orderCodeText,
                     isEmergency
                       ? styles.orderCodeTextEmergency
+                      : isAdvance
+                      ? { color: '#0369a1' }
                       : !isConfirmed && styles.orderCodeTextRequested,
                   ]}
                 >
                   ORDER #{bookingCode} •{' '}
                   {isEmergency
                     ? (isConfirmed ? 'EMERGENCY ACTIVE • ON ROUTE' : '🚨 24/7 RAPID SOS')
+                    : isAdvance
+                    ? '📅 ADVANCE SCHEDULED'
                     : isConfirmed
                     ? 'CONFIRMED'
                     : 'AWAITING WORKER'}
@@ -523,6 +536,8 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
                   ? isConfirmed
                     ? `Technician ${workerName} has accepted your emergency request and is en route! Estimated arrival in 15–30 minutes.`
                     : `Immediate SOS alert sent to ${workerName}. Fast-track mobilization SLA: within 15–30 minutes.`
+                  : isAdvance
+                  ? `Your appointment for ${bookingDate} at ${bookingTime} is scheduled. Automated dispatch will verify availability and send the service request to ${workerName} 3 hours before (at ${autoDispatchLead}).`
                   : isConfirmed
                   ? `Your booking has been confirmed by ${workerName}. Technician is scheduled on active duty!`
                   : `Your service request has been sent to ${workerName}. Awaiting worker confirmation.`}
@@ -533,21 +548,21 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
               {/* ============================================================== */}
               <View style={styles.stepperContainer}>
                 <View style={styles.stepperTrackRow}>
-                  {/* Step 1: Requested */}
+                  {/* Step 1: Requested / Scheduled */}
                   <View style={styles.stepItem}>
                     <View style={[styles.stepCircle, styles.stepCircleDone]}>
                       <Check size={12} color="#ffffff" strokeWidth={3} />
                     </View>
                     <Text style={[styles.stepLabel, styles.stepLabelActive]}>
-                      {t('bookingDetail.step_requested') || 'Requested'}
+                      {isAdvance ? 'Scheduled' : (t('bookingDetail.step_requested') || 'Requested')}
                     </Text>
-                    <Text style={styles.stepSubLabelDone}>Sent ✓</Text>
+                    <Text style={styles.stepSubLabelDone}>{isAdvance ? 'Queued ✓' : 'Sent ✓'}</Text>
                   </View>
 
                   {/* Connecting Line 1-2 */}
                   <View style={[styles.stepLine, isConfirmed ? styles.stepLineActive : styles.stepLineAwaiting]} />
 
-                  {/* Step 2: Confirmed / Awaiting */}
+                  {/* Step 2: Confirmed / 3h Dispatch / Awaiting */}
                   <View style={styles.stepItem}>
                     {isConfirmed ? (
                       <Animated.View
@@ -563,18 +578,18 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
                       <Animated.View
                         style={[
                           styles.stepCircle,
-                          styles.stepCircleAwaiting,
+                          isAdvance ? { backgroundColor: '#f0f9ff', borderColor: '#38bdf8', borderWidth: 1.5 } : styles.stepCircleAwaiting,
                           { transform: [{ scale: stepperPulse }] },
                         ]}
                       >
-                        <Clock size={11} color="#d97706" strokeWidth={2.4} />
+                        <Clock size={11} color={isAdvance ? '#0284c7' : '#d97706'} strokeWidth={2.4} />
                       </Animated.View>
                     )}
                     <Text style={[styles.stepLabel, isConfirmed ? styles.stepLabelActive : styles.stepLabelAwaiting]}>
-                      {isConfirmed ? (t('bookingDetail.step_confirmed') || 'Confirmed') : 'Confirmed'}
+                      {isAdvance ? '3h Dispatch' : isConfirmed ? (t('bookingDetail.step_confirmed') || 'Confirmed') : 'Confirmed'}
                     </Text>
                     <Text style={isConfirmed ? styles.stepSubLabelDone : styles.stepSubLabelAwaiting}>
-                      {isConfirmed ? 'Accepted' : 'Waiting...'}
+                      {isConfirmed ? 'Accepted' : isAdvance ? `At ${autoDispatchLead}` : 'Waiting...'}
                     </Text>
                   </View>
 
@@ -604,38 +619,86 @@ export const BookingConfirmedModal: React.FC<BookingConfirmedModalProps> = ({
                 </View>
               </View>
 
-              {/* Awaiting Worker Confirmation Notice Card */}
+              {/* Awaiting / Advance Scheduling Notice Card */}
               {!isConfirmed && (
-                <View style={[styles.awaitingNoticeCard, isEmergency && styles.awaitingNoticeCardEmergency]}>
+                <View
+                  style={[
+                    styles.awaitingNoticeCard,
+                    isEmergency && styles.awaitingNoticeCardEmergency,
+                    isAdvance && { backgroundColor: '#f0f9ff', borderColor: '#38bdf8' },
+                  ]}
+                >
                   <View style={styles.awaitingTopRow}>
-                    <View style={[styles.awaitingClockIconCircle, isEmergency && styles.awaitingEmergencyIconCircle]}>
+                    <View
+                      style={[
+                        styles.awaitingClockIconCircle,
+                        isEmergency && styles.awaitingEmergencyIconCircle,
+                        isAdvance && { backgroundColor: '#e0f2fe' },
+                      ]}
+                    >
                       {isEmergency ? (
                         <AlertTriangle size={16} color="#dc2626" strokeWidth={2.5} />
                       ) : (
-                        <Clock size={16} color="#d97706" strokeWidth={2.5} />
+                        <Clock size={16} color={isAdvance ? '#0284c7' : '#d97706'} strokeWidth={2.5} />
                       )}
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.awaitingNoticeTitle, isEmergency && styles.awaitingNoticeTitleEmergency]}>
+                      <Text
+                        style={[
+                          styles.awaitingNoticeTitle,
+                          isEmergency && styles.awaitingNoticeTitleEmergency,
+                          isAdvance && { color: '#0369a1' },
+                        ]}
+                      >
                         {isEmergency
                           ? '🚨 Emergency Priority Mobilization'
+                          : isAdvance
+                          ? '📅 Automated 3-Hour Advance Dispatch'
                           : (t('booking.awaiting_worker') || 'Awaiting Worker Confirmation')}
                       </Text>
-                      <Text style={[styles.awaitingNoticeDesc, isEmergency && styles.awaitingNoticeDescEmergency]}>
+                      <Text
+                        style={[
+                          styles.awaitingNoticeDesc,
+                          isEmergency && styles.awaitingNoticeDescEmergency,
+                          isAdvance && { color: '#0c4a6e' },
+                        ]}
+                      >
                         {isEmergency
                           ? `${workerName} has received your SOS alert. Emergency +25% bonus wage applied. Rapid response SLA: arrival within 15–30 mins.`
+                          : isAdvance
+                          ? `Your booking is safely scheduled. When ${bookingDate} arrives, at ${autoDispatchLead} (3 hours before your appointment), the system will automatically check ${workerName}'s availability and dispatch the request. If occupied, you will be notified instantly to pick a new slot.`
                           : `${workerName} has received your job alert. You will be notified as soon as they confirm your booking.`}
                       </Text>
                     </View>
                   </View>
 
-                  <View style={[styles.awaitingNoticeDivider, isEmergency && styles.awaitingNoticeDividerEmergency]} />
+                  <View
+                    style={[
+                      styles.awaitingNoticeDivider,
+                      isEmergency && styles.awaitingNoticeDividerEmergency,
+                      isAdvance && { backgroundColor: 'rgba(56, 189, 248, 0.3)' },
+                    ]}
+                  />
 
                   <View style={styles.dispatchPillRow}>
-                    <View style={[styles.pulseLiveDot, isEmergency && { backgroundColor: '#ef4444' }]} />
-                    <Text style={[styles.dispatchPillText, isEmergency && { color: '#dc2626', fontWeight: '800' }]}>
+                    <View
+                      style={[
+                        styles.pulseLiveDot,
+                        isEmergency && { backgroundColor: '#ef4444' },
+                        isAdvance && { backgroundColor: '#0284c7' },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.dispatchPillText,
+                        isEmergency && { color: '#dc2626', fontWeight: '800' },
+                        isAdvance && { color: '#0369a1', fontWeight: '800' },
+                      ]}
+                    >
                       {isEmergency
                         ? '⚡ Rapid Response Priority Unit • 15–30 min arrival SLA'
+                        : isAdvance
+                        ? `📅 Dispatches 3 Hours Prior (${autoDispatchLead})`
                         : 'Direct Cooperative Dispatch • Avg response 2–5 min'}
                     </Text>
                   </View>

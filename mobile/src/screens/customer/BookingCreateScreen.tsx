@@ -1,5 +1,5 @@
 // ==============================================================================
-// CUSTOMER BOOKING CREATE SCREEN — INTERACTIVE CALENDAR & REAL-TIME SLOTS
+// CUSTOMER BOOKING CREATE SCREEN — INTERACTIVE CALENDAR, ALARM TIME PICKER & ADVANCE 3-HOUR DISPATCH
 // ==============================================================================
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -29,6 +29,8 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  Minus,
 } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import type { Palette } from '../../theme';
@@ -47,6 +49,11 @@ const MONTH_NAMES = [
 
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const HOURS_LIST = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+const MINUTES_LIST = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+const PERIODS_LIST = ['AM', 'PM'];
+const MINUTE_PRESETS = ['00', '15', '30', '45'];
+
 const getTodayDate = () => {
   const now = new Date();
   const y = now.getFullYear();
@@ -60,33 +67,20 @@ const getTodayDate = () => {
   };
 };
 
-export const STANDARD_TIME_SLOTS = [
-  '08:00 AM',
-  '08:30 AM',
-  '09:00 AM',
-  '09:30 AM',
-  '10:00 AM',
-  '10:30 AM',
-  '11:00 AM',
-  '11:30 AM',
-  '12:00 PM',
-  '12:30 PM',
-  '01:00 PM',
-  '01:30 PM',
-  '02:00 PM',
-  '02:30 PM',
-  '03:00 PM',
-  '03:30 PM',
-  '04:00 PM',
-  '04:30 PM',
-  '05:00 PM',
-  '05:30 PM',
-  '06:00 PM',
-  '06:30 PM',
-  '07:00 PM',
-  '07:30 PM',
-  '08:00 PM',
-];
+/**
+ * Calculates day difference between target date and today.
+ * 0 = today, 1 = tomorrow, 2 = day after tomorrow, >=3 = advance scheduled
+ */
+export const getDayDifferenceFromToday = (targetDateStr: string): number => {
+  return ApiClient.getDayDifferenceFromToday(targetDateStr);
+};
+
+/**
+ * Calculates the automated dispatch time (3 hours before scheduled appointment)
+ */
+export const calculate3HoursPrior = (timeStr: string): string => {
+  return ApiClient.calculate3HoursPrior(timeStr);
+};
 
 export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
   route,
@@ -142,11 +136,41 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
     return todayInfo.month;
   });
 
-  const [time, setTime] = useState(
-    initialEmergency
-      ? 'Immediate (< 15-30 min dispatch)'
-      : route?.params?.requestedTime || '10:00 AM'
-  );
+  // Time Picker Decomposed State (Alarm Scroller)
+  const [selectedHour, setSelectedHour] = useState<string>('09');
+  const [selectedMinute, setSelectedMinute] = useState<string>('30');
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('AM');
+
+  const hourScrollRef = useRef<ScrollView>(null);
+  const minuteScrollRef = useRef<ScrollView>(null);
+
+  const handleSelectHour = (h: string, index: number) => {
+    setSelectedHour(h);
+    hourScrollRef.current?.scrollTo({ y: Math.max(0, index * 38), animated: true });
+  };
+
+  const handleSelectMinute = (m: string, index: number) => {
+    setSelectedMinute(m);
+    minuteScrollRef.current?.scrollTo({ y: Math.max(0, index * 38), animated: true });
+  };
+
+  // Parse initial time if given from route
+  useEffect(() => {
+    if (route?.params?.requestedTime) {
+      const match = route.params.requestedTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (match) {
+        setSelectedHour(match[1].padStart(2, '0'));
+        setSelectedMinute(match[2].padStart(2, '0'));
+        if (match[3]) setSelectedPeriod(match[3].toUpperCase());
+      }
+    }
+  }, [route?.params?.requestedTime]);
+
+  const time = useMemo(() => {
+    if (initialEmergency) return 'Immediate (< 15-30 min dispatch)';
+    return `${selectedHour}:${selectedMinute} ${selectedPeriod}`;
+  }, [selectedHour, selectedMinute, selectedPeriod, initialEmergency]);
+
   const [address, setAddress] = useState('Flat 402, Royal Residency, Connaught Place');
   const [pincode, setPincode] = useState('110001');
   const [description, setDescription] = useState(
@@ -195,10 +219,12 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
         setCalendarMonth(Number(parts[1]) - 1);
       }
     }
-    if (route?.params?.requestedTime) {
-      setTime(route.params.requestedTime);
-    }
   }, [route?.params]);
+
+  // Day window analysis: <= 2 days is Live 3-day dispatch; > 2 days is Advance Scheduled Booking
+  const dayDifference = useMemo(() => getDayDifferenceFromToday(date), [date]);
+  const isAdvanceScheduled = dayDifference > 2;
+  const dispatch3HoursPriorTime = useMemo(() => calculate3HoursPrior(time), [time]);
 
   // Calendar days grid computation
   const calendarDays = useMemo(() => {
@@ -211,6 +237,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
       isToday: boolean;
       isSelected: boolean;
       isPast: boolean;
+      isLiveWindow: boolean; // Day 0, 1, 2
       hasWorkerBookings: boolean;
     }> = [];
 
@@ -222,6 +249,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
         isToday: false,
         isSelected: false,
         isPast: false,
+        isLiveWindow: false,
         hasWorkerBookings: false,
       });
     }
@@ -232,6 +260,8 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
       const isToday = dateStr === todayInfo.dateStr;
       const isSelected = dateStr === date;
       const isPast = dateStr < todayInfo.dateStr;
+      const diff = getDayDifferenceFromToday(dateStr);
+      const isLiveWindow = !isPast && diff >= 0 && diff <= 2;
       const hasWorkerBookings = workerBookings.some(
         (b) =>
           b.booking_date === dateStr &&
@@ -244,6 +274,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
         isToday,
         isSelected,
         isPast,
+        isLiveWindow,
         hasWorkerBookings,
       });
     }
@@ -294,35 +325,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
     return date;
   }, [date]);
 
-  // Evaluate conflict mapping for all standard slots on chosen date
-  const slotStatusMap = useMemo(() => {
-    const map: Record<
-      string,
-      { isBusy: boolean; conflictReason?: string; conflictingBooking?: Booking }
-    > = {};
-
-    STANDARD_TIME_SLOTS.forEach((slot) => {
-      const conflict = ApiClient.checkScheduleConflict(
-        {
-          booking_date: date,
-          booking_time: slot,
-          worker_id: activeWorkerId,
-          is_emergency: false,
-        },
-        workerBookings,
-        60
-      );
-      map[slot] = {
-        isBusy: conflict.hasConflict,
-        conflictReason: conflict.reason,
-        conflictingBooking: conflict.conflictingBooking || undefined,
-      };
-    });
-
-    return map;
-  }, [date, workerBookings, activeWorkerId]);
-
-  // Check collision for the currently selected time & date
+  // Check collision for the currently selected alarm time & date
   const currentSlotConflict = useMemo(() => {
     if (isEmergency) return { hasConflict: false };
     return ApiClient.checkScheduleConflict(
@@ -339,27 +342,54 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
 
   const isSlotColliding = !isEmergency && currentSlotConflict.hasConflict;
 
-  // Find the first available free slot for this date
-  const firstAvailableSlot = useMemo(() => {
-    return STANDARD_TIME_SLOTS.find((s) => !slotStatusMap[s]?.isBusy) || '12:00 PM';
-  }, [slotStatusMap]);
+  // Minute stepper handlers (+1 min / -1 min, +5 min / -5 min) with wrap-around
+  const adjustMinute = (delta: number) => {
+    let cur = parseInt(selectedMinute, 10);
+    if (isNaN(cur)) cur = 0;
+    let next = (cur + delta) % 60;
+    if (next < 0) next += 60;
+    const formatted = String(next).padStart(2, '0');
+    setSelectedMinute(formatted);
+    const idx = MINUTES_LIST.indexOf(formatted);
+    if (idx !== -1) {
+      minuteScrollRef.current?.scrollTo({ y: Math.max(0, idx * 38), animated: true });
+    }
+  };
+
+  // Auto-scroll alarm drum wheels into position on mount or time change
+  useEffect(() => {
+    const hIdx = HOURS_LIST.indexOf(selectedHour);
+    if (hIdx !== -1) {
+      setTimeout(() => {
+        hourScrollRef.current?.scrollTo({ y: Math.max(0, hIdx * 38), animated: false });
+      }, 150);
+    }
+    const mIdx = MINUTES_LIST.indexOf(selectedMinute);
+    if (mIdx !== -1) {
+      setTimeout(() => {
+        minuteScrollRef.current?.scrollTo({ y: Math.max(0, mIdx * 38), animated: false });
+      }, 150);
+    }
+  }, []);
+
+  // Quick Free Slot Setter
+  const handleSelectFreeTime = () => {
+    setSelectedHour('02');
+    setSelectedMinute('00');
+    setSelectedPeriod('PM');
+    const hIdx = HOURS_LIST.indexOf('02');
+    if (hIdx !== -1) hourScrollRef.current?.scrollTo({ y: hIdx * 38, animated: true });
+    const mIdx = MINUTES_LIST.indexOf('00');
+    if (mIdx !== -1) minuteScrollRef.current?.scrollTo({ y: mIdx * 38, animated: true });
+  };
 
   const handleToggleEmergency = (val: boolean) => {
     setIsEmergency(val);
     if (val) {
       setDate(todayInfo.dateStr);
-      setTime('Immediate (< 15-30 min dispatch)');
       if (!description.trim()) {
         setDescription('Urgent 24/7 emergency dispatch requested for immediate on-site assistance.');
       }
-    } else {
-      setTime(firstAvailableSlot || '10:00 AM');
-    }
-  };
-
-  const handleSelectDifferentTime = () => {
-    if (firstAvailableSlot) {
-      setTime(firstAvailableSlot);
     }
   };
 
@@ -373,9 +403,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
       const alternatives = nearby.filter((w) => w.workerId !== activeWorkerId);
 
       if (alternatives.length > 0) {
-        // Find closest worker
         const closest = alternatives[0];
-
         navigation.navigate('WorkerSearch', {
           selectedCategory: workerTrade,
           alternativeBanner: true,
@@ -458,6 +486,9 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
         estimated_amount: finalAmount,
         final_amount: finalAmount,
         is_emergency: isEmergency,
+        is_advance_scheduled: isAdvanceScheduled,
+        auto_dispatch_lead_hours: isAdvanceScheduled ? 3 : 0,
+        auto_dispatch_time: isAdvanceScheduled ? dispatch3HoursPriorTime : undefined,
       };
 
       const result = await ApiClient.createBooking(payload);
@@ -531,7 +562,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
         </View>
 
         {/* ========================================================================= */}
-        {/* 1. DATE CALENDAR CARD (Interactive Monthly Calendar) */}
+        {/* 1. INTERACTIVE CALENDAR (3-Day Live Window + Advance Scheduling) */}
         {/* ========================================================================= */}
         <View style={styles.calendarCard}>
           {/* Header Row with Today Jump */}
@@ -556,6 +587,31 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
               <Clock size={11} color={colors.primary} />
               <Text style={styles.todayPillBtnText}>{t('calendar.today', 'Today')}</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Booking Dispatch Mode Pill */}
+          <View
+            style={[
+              styles.dispatchModePill,
+              isAdvanceScheduled ? styles.dispatchModePillAdvance : styles.dispatchModePillLive,
+            ]}
+          >
+            <View
+              style={[
+                styles.dispatchModeDot,
+                isAdvanceScheduled ? styles.dispatchModeDotAdvance : styles.dispatchModeDotLive,
+              ]}
+            />
+            <Text
+              style={[
+                styles.dispatchModeText,
+                isAdvanceScheduled ? styles.dispatchModeTextAdvance : styles.dispatchModeTextLive,
+              ]}
+            >
+              {isAdvanceScheduled
+                ? `📅 Advance Scheduled Booking (Dispatches 3h before appointment)`
+                : `⚡ Live 3-Day Dispatch Window (Instant Alert to ${worker.name?.split(' ')[0] || 'Worker'})`}
+            </Text>
           </View>
 
           {/* Month Navigation Strip */}
@@ -621,6 +677,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
                       styles.dayBadge,
                       item.isSelected && styles.dayBadgeSelected,
                       item.isToday && !item.isSelected && styles.dayBadgeToday,
+                      item.isLiveWindow && !item.isSelected && styles.dayBadgeLiveWindow,
                       item.isPast && styles.dayBadgePast,
                     ]}
                   >
@@ -649,17 +706,26 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
             })}
           </View>
 
-          {/* Active Date Confirmation Bar */}
+          {/* Active Date Confirmation Bar & Advance Notice */}
           <View style={styles.selectedDateBadgeRow}>
             <View style={styles.selectedDateDot} />
             <Text style={styles.selectedDateBadgeText}>
-              Selected: <Text style={{ fontWeight: '800' }}>{selectedDateFormatted}</Text>
+              Selected Date: <Text style={{ fontWeight: '800' }}>{selectedDateFormatted}</Text>
             </Text>
           </View>
+
+          {isAdvanceScheduled && (
+            <View style={styles.advanceScheduleInfoBox}>
+              <Clock size={14} color="#0284c7" />
+              <Text style={styles.advanceScheduleInfoText}>
+                Automated 3-Hour Dispatch: When {selectedDateFormatted} arrives, this booking will be automatically verified and dispatched to {worker.name} at {dispatch3HoursPriorTime}.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* ========================================================================= */}
-        {/* 2. TIME SLOT PANEL (Horizontal Scrollbar - No Free Text Input) */}
+        {/* 2. ALARM-STYLE MULTI-COLUMN TIME PICKER SCROLLER (Exact Minute Precision) */}
         {/* ========================================================================= */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
@@ -668,68 +734,215 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
           </View>
 
           {!isEmergency ? (
-            <>
-              <Text style={styles.slotSubtitle}>
-                Scroll horizontally to choose an available time slot:
-              </Text>
+            <View style={styles.alarmPickerCard}>
+              {/* Digital Alarm Time Display Readout */}
+              <View style={styles.digitalReadoutRow}>
+                <View style={styles.digitalReadoutBadge}>
+                  <Text style={styles.digitalClockIcon}>⏰</Text>
+                  <Text style={styles.digitalReadoutTime}>{time}</Text>
+                </View>
 
-              {/* Horizontal Scrollable Time Slots Strip */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={true}
-                contentContainerStyle={styles.timeSlotsScrollContent}
-                style={styles.timeSlotsScrollView}
-              >
-                {STANDARD_TIME_SLOTS.map((slot) => {
-                  const isSelected = time === slot;
-                  const isBusy = slotStatusMap[slot]?.isBusy;
+                <View
+                  style={[
+                    styles.slotStatusTagPill,
+                    isSlotColliding ? styles.slotStatusTagPillBusy : styles.slotStatusTagPillFree,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.statusIndicatorDot,
+                      isSlotColliding ? styles.statusIndicatorDotBusy : styles.statusIndicatorDotFree,
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.slotStatusTagPillText,
+                      isSlotColliding ? styles.slotStatusTagPillTextBusy : styles.slotStatusTagPillTextFree,
+                    ]}
+                  >
+                    {isSlotColliding ? 'Slot Booked' : 'Available'}
+                  </Text>
+                </View>
+              </View>
 
+              {/* Alarm Wheels Container (Hours | Minutes | AM/PM) */}
+              <View style={styles.alarmWheelsContainer}>
+                {/* Center Magnifying Highlight Bar */}
+                <View pointerEvents="none" style={styles.alarmCenterHighlight} />
+
+                {/* Column 1: Hours */}
+                <View style={styles.alarmWheelCol}>
+                  <Text style={styles.alarmColHeader}>HOUR</Text>
+                  <ScrollView
+                    ref={hourScrollRef}
+                    style={styles.alarmScrollColumn}
+                    contentContainerStyle={styles.alarmScrollContent}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={38}
+                    decelerationRate="fast"
+                  >
+                    {HOURS_LIST.map((h, idx) => {
+                      const isSel = selectedHour === h;
+                      return (
+                        <TouchableOpacity
+                          key={h}
+                          style={[styles.alarmItemRow, isSel && styles.alarmItemRowSelected]}
+                          onPress={() => handleSelectHour(h, idx)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.alarmItemText,
+                              isSel && styles.alarmItemTextSelected,
+                            ]}
+                          >
+                            {h}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+
+                {/* Column Divider */}
+                <Text style={styles.alarmColonDivider}>:</Text>
+
+                {/* Column 2: Minutes (Full 00-59 with Exact Minute Precision) */}
+                <View style={styles.alarmWheelCol}>
+                  <Text style={styles.alarmColHeader}>MINUTE</Text>
+                  <ScrollView
+                    ref={minuteScrollRef}
+                    style={styles.alarmScrollColumn}
+                    contentContainerStyle={styles.alarmScrollContent}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={38}
+                    decelerationRate="fast"
+                  >
+                    {MINUTES_LIST.map((m, idx) => {
+                      const isSel = selectedMinute === m;
+                      return (
+                        <TouchableOpacity
+                          key={m}
+                          style={[styles.alarmItemRow, isSel && styles.alarmItemRowSelected]}
+                          onPress={() => handleSelectMinute(m, idx)}
+                          activeOpacity={0.7}
+                        >
+                          <Text
+                            style={[
+                              styles.alarmItemText,
+                              isSel && styles.alarmItemTextSelected,
+                            ]}
+                          >
+                            {m}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+
+                {/* Column 3: AM / PM */}
+                <View style={[styles.alarmWheelCol, { flex: 0.85 }]}>
+                  <Text style={styles.alarmColHeader}>AM / PM</Text>
+                  <View style={styles.periodPickerWrap}>
+                    {PERIODS_LIST.map((p) => {
+                      const isSel = selectedPeriod === p;
+                      return (
+                        <TouchableOpacity
+                          key={p}
+                          style={[
+                            styles.periodButton,
+                            isSel && styles.periodButtonSelected,
+                          ]}
+                          onPress={() => setSelectedPeriod(p)}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.periodButtonText,
+                              isSel && styles.periodButtonTextSelected,
+                            ]}
+                          >
+                            {p}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+
+              {/* Quick Minute Preset Chips */}
+              <View style={styles.presetChipsRow}>
+                <Text style={styles.presetChipsLabel}>Presets:</Text>
+                {MINUTE_PRESETS.map((preset) => {
+                  const isCur = selectedMinute === preset;
                   return (
                     <TouchableOpacity
-                      key={slot}
-                      style={[
-                        styles.timeSlotPill,
-                        isSelected && styles.timeSlotPillSelected,
-                        isBusy && !isSelected && styles.timeSlotPillBusy,
-                        isBusy && isSelected && styles.timeSlotPillBusySelected,
-                      ]}
-                      onPress={() => setTime(slot)}
+                      key={preset}
+                      style={[styles.presetChipBtn, isCur && styles.presetChipBtnActive]}
+                      onPress={() => {
+                        const idx = MINUTES_LIST.indexOf(preset);
+                        if (idx !== -1) handleSelectMinute(preset, idx);
+                      }}
                       activeOpacity={0.75}
                     >
-                      <View style={styles.slotDotAndText}>
-                        <View
-                          style={[
-                            styles.slotDot,
-                            isBusy ? styles.slotDotBusy : styles.slotDotFree,
-                            isSelected && styles.slotDotSelected,
-                          ]}
-                        />
-                        <Text
-                          style={[
-                            styles.timeSlotPillText,
-                            isSelected && styles.timeSlotPillTextSelected,
-                            isBusy && styles.timeSlotPillTextBusy,
-                          ]}
-                        >
-                          {slot}
-                        </Text>
-                      </View>
                       <Text
                         style={[
-                          styles.slotStatusTag,
-                          isBusy ? styles.slotStatusTagBusy : styles.slotStatusTagFree,
-                          isSelected && styles.slotStatusTagSelected,
+                          styles.presetChipText,
+                          isCur && styles.presetChipTextActive,
                         ]}
                       >
-                        {isBusy
-                          ? t('booking.slot_booked', 'Booked')
-                          : t('booking.slot_available', 'Available')}
+                        :{preset}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
-            </>
+              </View>
+
+              {/* Minute Fine-Tuning Steppers (-5m, -1m, +1m, +5m) */}
+              <View style={styles.minuteStepperRow}>
+                <View style={styles.stepperSubGroup}>
+                  <TouchableOpacity
+                    style={styles.minuteStepBtn}
+                    onPress={() => adjustMinute(-5)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.minuteStepBtnText}>-5m</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.minuteStepBtn}
+                    onPress={() => adjustMinute(-1)}
+                    activeOpacity={0.75}
+                  >
+                    <Minus size={13} color={colors.primary} />
+                    <Text style={styles.minuteStepBtnText}>-1m</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.minutePrecisionHint}>
+                  <Text style={{ fontWeight: '800', color: colors.primary }}>{time}</Text>
+                </Text>
+
+                <View style={styles.stepperSubGroup}>
+                  <TouchableOpacity
+                    style={styles.minuteStepBtn}
+                    onPress={() => adjustMinute(1)}
+                    activeOpacity={0.75}
+                  >
+                    <Plus size={13} color={colors.primary} />
+                    <Text style={styles.minuteStepBtnText}>+1m</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.minuteStepBtn}
+                    onPress={() => adjustMinute(5)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.minuteStepBtnText}>+5m</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
           ) : (
             <View style={styles.emergencyTimeBox}>
               <Zap size={16} color="#e11d48" />
@@ -741,7 +954,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
         </View>
 
         {/* ========================================================================= */}
-        {/* 3. SCHEDULE COLLISION ALERT CARD (Shown right below Time section) */}
+        {/* 3. SCHEDULE COLLISION ALERT CARD (Shown right below Alarm Time section) */}
         {/* ========================================================================= */}
         {isSlotColliding && (
           <FadeInView distance={8} duration={240}>
@@ -769,12 +982,12 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
               <View style={styles.collisionActionsRow}>
                 <TouchableOpacity
                   style={styles.collisionActionAltBtn}
-                  onPress={handleSelectDifferentTime}
+                  onPress={handleSelectFreeTime}
                   activeOpacity={0.8}
                 >
                   <Clock size={14} color="#B86A00" />
                   <Text style={styles.collisionActionAltBtnText}>
-                    Pick Free Slot ({firstAvailableSlot})
+                    Change Time (e.g. 02:00 PM)
                   </Text>
                 </TouchableOpacity>
 
@@ -915,6 +1128,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
           style={[
             styles.submitBtn,
             isEmergency && styles.submitBtnEmergency,
+            isAdvanceScheduled && !isEmergency && styles.submitBtnAdvance,
             isSlotColliding && styles.submitBtnFaded,
           ]}
           onPress={handleSubmit}
@@ -934,6 +1148,8 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
                 ? `🚨 Request Emergency Dispatch (₹${finalAmount})`
                 : isSlotColliding
                 ? `Time Slot Unavailable (${time})`
+                : isAdvanceScheduled
+                ? `📅 Schedule Advance Booking (Dispatches 3h Prior)`
                 : t('booking.confirm_btn', 'Send Booking Request')}
             </Text>
           )}
@@ -1069,7 +1285,7 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 12,
+      marginBottom: 10,
     },
     calendarHeaderTitleGroup: {
       flexDirection: 'row',
@@ -1110,6 +1326,47 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       fontSize: 11,
       fontWeight: '700',
       color: colors.primary,
+    },
+    dispatchModePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+      marginBottom: 10,
+    },
+    dispatchModePillLive: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ecfdf5',
+      borderWidth: 1,
+      borderColor: '#10b981',
+    },
+    dispatchModePillAdvance: {
+      backgroundColor: isDark ? 'rgba(2, 132, 199, 0.15)' : '#f0f9ff',
+      borderWidth: 1,
+      borderColor: '#0284c7',
+    },
+    dispatchModeDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    dispatchModeDotLive: {
+      backgroundColor: '#10b981',
+    },
+    dispatchModeDotAdvance: {
+      backgroundColor: '#0284c7',
+    },
+    dispatchModeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      flex: 1,
+    },
+    dispatchModeTextLive: {
+      color: '#047857',
+    },
+    dispatchModeTextAdvance: {
+      color: '#0369a1',
     },
     monthNavStrip: {
       flexDirection: 'row',
@@ -1183,8 +1440,11 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       borderColor: colors.primary,
       backgroundColor: colors.primaryLight,
     },
+    dayBadgeLiveWindow: {
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.08)' : '#f0fdf4',
+    },
     dayBadgePast: {
-      opacity: 0.35,
+      opacity: 0.3,
     },
     dayNumberText: {
       fontSize: 12.5,
@@ -1233,8 +1493,25 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       fontSize: 11.5,
       color: colors.primary,
     },
+    advanceScheduleInfoBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 8,
+      backgroundColor: isDark ? 'rgba(2, 132, 199, 0.1)' : '#f0f9ff',
+      borderWidth: 1,
+      borderColor: '#38bdf8',
+      padding: 10,
+      borderRadius: 8,
+      marginTop: 8,
+    },
+    advanceScheduleInfoText: {
+      fontSize: 11,
+      color: '#0369a1',
+      lineHeight: 16,
+      flex: 1,
+    },
 
-    // TIME SLOTS SECTION & HORIZONTAL SCROLLBAR
+    // ALARM TIME PICKER CARD
     section: {
       backgroundColor: colors.surface,
       padding: 16,
@@ -1247,95 +1524,247 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginBottom: 8,
+      marginBottom: 10,
     },
     sectionTitle: {
       fontSize: 13,
       fontWeight: '700',
       color: colors.textPrimary,
     },
-    slotSubtitle: {
-      fontSize: 11.5,
-      color: colors.textMuted,
-      marginBottom: 10,
-    },
-    timeSlotsScrollView: {
-      marginHorizontal: -4,
-    },
-    timeSlotsScrollContent: {
-      flexDirection: 'row',
-      gap: 8,
-      paddingHorizontal: 4,
-      paddingBottom: 6,
-    },
-    timeSlotPill: {
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      borderRadius: 12,
+    alarmPickerCard: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.03)' : colors.surfaceSubtle,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: colors.surfaceSubtle,
+      padding: 12,
+    },
+    digitalReadoutRow: {
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      minWidth: 110,
+      justifyContent: 'space-between',
+      paddingBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginBottom: 12,
     },
-    timeSlotPillSelected: {
-      borderColor: colors.primary,
-      backgroundColor: isDark ? 'rgba(8, 127, 91, 0.25)' : '#e8f7f1',
-    },
-    timeSlotPillBusy: {
-      borderColor: isDark ? 'rgba(217, 119, 6, 0.3)' : '#fed7aa',
-      backgroundColor: isDark ? 'rgba(217, 119, 6, 0.08)' : '#fffbeb',
-    },
-    timeSlotPillBusySelected: {
-      borderColor: '#d97706',
-      backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : '#fef3c7',
-    },
-    slotDotAndText: {
+    digitalReadoutBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
     },
-    slotDot: {
+    digitalClockIcon: {
+      fontSize: 16,
+    },
+    digitalReadoutTime: {
+      fontSize: 18,
+      fontWeight: '900',
+      color: colors.primary,
+      letterSpacing: 0.5,
+    },
+    slotStatusTagPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    slotStatusTagPillFree: {
+      backgroundColor: '#ecfdf5',
+      borderWidth: 1,
+      borderColor: '#10b981',
+    },
+    slotStatusTagPillBusy: {
+      backgroundColor: '#fef3c7',
+      borderWidth: 1,
+      borderColor: '#f59e0b',
+    },
+    statusIndicatorDot: {
       width: 6,
       height: 6,
       borderRadius: 3,
     },
-    slotDotFree: {
+    statusIndicatorDotFree: {
       backgroundColor: '#10b981',
     },
-    slotDotBusy: {
+    statusIndicatorDotBusy: {
       backgroundColor: '#f59e0b',
     },
-    slotDotSelected: {
-      backgroundColor: colors.primary,
+    slotStatusTagPillText: {
+      fontSize: 10.5,
+      fontWeight: '700',
     },
-    timeSlotPillText: {
+    slotStatusTagPillTextFree: {
+      color: '#047857',
+    },
+    slotStatusTagPillTextBusy: {
+      color: '#b45309',
+    },
+    alarmWheelsContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-around',
+      position: 'relative',
+      height: 150,
+      paddingHorizontal: 8,
+    },
+    alarmCenterHighlight: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 55,
+      height: 40,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(8, 127, 91, 0.18)' : '#e8f7f1',
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+    },
+    alarmWheelCol: {
+      flex: 1,
+      alignItems: 'center',
+      height: '100%',
+    },
+    alarmColHeader: {
+      fontSize: 10,
+      fontWeight: '800',
+      color: colors.textMuted,
+      marginBottom: 4,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
+    },
+    alarmScrollColumn: {
+      flex: 1,
+      width: '100%',
+    },
+    alarmScrollContent: {
+      alignItems: 'center',
+      paddingVertical: 10,
+    },
+    alarmItemRow: {
+      height: 38,
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '80%',
+      borderRadius: 8,
+    },
+    alarmItemRowSelected: {
+      backgroundColor: 'transparent',
+    },
+    alarmItemText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    alarmItemTextSelected: {
+      fontSize: 18,
+      fontWeight: '900',
+      color: colors.primary,
+    },
+    alarmColonDivider: {
+      fontSize: 22,
+      fontWeight: '900',
+      color: colors.primary,
+      paddingBottom: 15,
+      paddingHorizontal: 4,
+    },
+    periodPickerWrap: {
+      flex: 1,
+      justifyContent: 'center',
+      gap: 8,
+      width: '85%',
+    },
+    periodButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    periodButtonSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    periodButtonText: {
       fontSize: 12,
       fontWeight: '700',
       color: colors.textPrimary,
     },
-    timeSlotPillTextSelected: {
-      color: colors.primary,
-      fontWeight: '800',
+    periodButtonTextSelected: {
+      color: colors.textInverse,
+      fontWeight: '900',
     },
-    timeSlotPillTextBusy: {
+    presetChipsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 10,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    presetChipsLabel: {
+      fontSize: 10.5,
+      fontWeight: '700',
+      color: colors.textMuted,
+      marginRight: 2,
+    },
+    presetChipBtn: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    presetChipBtnActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    presetChipText: {
+      fontSize: 11,
+      fontWeight: '700',
       color: colors.textSecondary,
     },
-    slotStatusTag: {
-      fontSize: 9.5,
-      fontWeight: '600',
-      marginTop: 3,
+    presetChipTextActive: {
+      color: colors.textInverse,
+      fontWeight: '800',
     },
-    slotStatusTagFree: {
-      color: '#059669',
+    minuteStepperRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 8,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
     },
-    slotStatusTagBusy: {
-      color: '#d97706',
+    stepperSubGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
     },
-    slotStatusTagSelected: {
-      color: colors.primary,
+    minuteStepBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      borderRadius: 6,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    minuteStepBtnText: {
+      fontSize: 10.5,
       fontWeight: '700',
+      color: colors.primary,
+    },
+    minutePrecisionHint: {
+      fontSize: 11.5,
+      color: colors.textSecondary,
     },
     emergencyTimeBox: {
       flexDirection: 'row',
@@ -1529,6 +1958,10 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     submitBtnEmergency: {
       backgroundColor: '#e11d48',
     },
+    submitBtnAdvance: {
+      backgroundColor: '#0284c7',
+      shadowColor: '#0284c7',
+    },
     submitBtnFaded: {
       backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
       borderColor: colors.border,
@@ -1538,9 +1971,11 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       elevation: 0,
     },
     submitBtnText: {
-      fontSize: 15,
+      fontSize: 14.5,
       fontWeight: '800',
       color: colors.textInverse,
+      textAlign: 'center',
+      paddingHorizontal: 8,
     },
     submitBtnTextFaded: {
       color: colors.textMuted,
