@@ -35,11 +35,16 @@ import {
   Info,
   Wrench,
   Check,
+  QrCode,
+  Copy,
+  ExternalLink,
 } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import type { Palette } from '../../theme';
 import type { Booking, ExtraTaskItem, Invoice, Payment } from '../../types';
 import { ApiClient } from '../../services/apiClient';
+import { RealQRCode } from './RealQRCode';
+import { UPIPaymentService, COOP_DEFAULT_VPA } from '../../services/upiPaymentService';
 
 interface PaymentCheckoutModalProps {
   visible: boolean;
@@ -67,8 +72,10 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
   const styles = createStyles(colors, isDark);
 
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodType>('upi');
+  const [upiMode, setUpiMode] = useState<'app' | 'qr'>('app');
   const [upiApp, setUpiApp] = useState<'gpay' | 'phonepe' | 'paytm' | 'bhim'>('gpay');
   const [customUpiId, setCustomUpiId] = useState('priya.singh@okaxis');
+  const [copiedVpa, setCopiedVpa] = useState(false);
   const [showItemsBreakdown, setShowItemsBreakdown] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -79,6 +86,15 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
   const welfareAmt = (totalAmount * 0.10).toFixed(2);
   const platformAmt = (totalAmount * 0.05).toFixed(2);
   const supplementalTotal = Math.max(0, totalAmount - baseAmount);
+
+  const checkoutUpiUri = UPIPaymentService.buildUPIUri({
+    pa: COOP_DEFAULT_VPA,
+    pn: 'Sahakari Seva Cooperative',
+    am: totalAmount,
+    cu: 'INR',
+    tn: `Payment for ${booking.booking_code}`,
+    tr: `TXN-${booking.id?.slice(0, 8) || Date.now().toString().slice(-8)}`,
+  });
 
   const handleProcessPayment = async () => {
     setIsProcessing(true);
@@ -315,37 +331,84 @@ export const PaymentCheckoutModal: React.FC<PaymentCheckoutModalProps> = ({
 
               {selectedMethod === 'upi' && (
                 <View style={styles.methodDetailSection}>
-                  <View style={styles.upiAppRow}>
-                    {(['gpay', 'phonepe', 'paytm', 'bhim'] as const).map((app) => (
-                      <TouchableOpacity
-                        key={app}
-                        style={[styles.upiAppBtn, upiApp === app && styles.upiAppBtnActive]}
-                        onPress={() => setUpiApp(app)}
-                      >
-                        <Text style={[styles.upiAppBtnText, upiApp === app && styles.upiAppBtnTextActive]}>
-                          {app === 'gpay'
-                            ? 'Google Pay'
-                            : app === 'phonepe'
-                            ? 'PhonePe'
-                            : app === 'paytm'
-                            ? 'Paytm'
-                            : 'BHIM'}
-                        </Text>
-                        {upiApp === app && <Check size={12} color="#ffffff" />}
-                      </TouchableOpacity>
-                    ))}
+                  {/* Mode switcher: Direct UPI Apps vs Scan QR Code */}
+                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9', padding: 3, borderRadius: 8 }}>
+                    <TouchableOpacity
+                      style={{ flex: 1, paddingVertical: 6, alignItems: 'center', borderRadius: 6, backgroundColor: upiMode === 'app' ? colors.surface : 'transparent' }}
+                      onPress={() => setUpiMode('app')}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={{ fontSize: 11.5, fontWeight: upiMode === 'app' ? '700' : '500', color: upiMode === 'app' ? colors.textPrimary : colors.textMuted }}>
+                        📱 1-Tap UPI Apps
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={{ flex: 1, paddingVertical: 6, alignItems: 'center', borderRadius: 6, backgroundColor: upiMode === 'qr' ? colors.surface : 'transparent' }}
+                      onPress={() => setUpiMode('qr')}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={{ fontSize: 11.5, fontWeight: upiMode === 'qr' ? '700' : '500', color: upiMode === 'qr' ? colors.textPrimary : colors.textMuted }}>
+                        📷 Dynamic UPI QR
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.upiInputBox}>
-                    <Text style={styles.upiInputPrefix}>UPI ID:</Text>
-                    <TextInput
-                      style={styles.upiInput}
-                      value={customUpiId}
-                      onChangeText={setCustomUpiId}
-                      placeholder="username@upi"
-                      placeholderTextColor={colors.textMuted}
-                      autoCapitalize="none"
-                    />
-                  </View>
+
+                  {upiMode === 'app' ? (
+                    <>
+                      <View style={styles.upiAppRow}>
+                        {(['gpay', 'phonepe', 'paytm', 'bhim'] as const).map((app) => (
+                          <TouchableOpacity
+                            key={app}
+                            style={[styles.upiAppBtn, upiApp === app && styles.upiAppBtnActive]}
+                            onPress={() => setUpiApp(app)}
+                          >
+                            <Text style={[styles.upiAppBtnText, upiApp === app && styles.upiAppBtnTextActive]}>
+                              {app === 'gpay'
+                                ? 'Google Pay'
+                                : app === 'phonepe'
+                                ? 'PhonePe'
+                                : app === 'paytm'
+                                ? 'Paytm'
+                                : 'BHIM'}
+                            </Text>
+                            {upiApp === app && <Check size={12} color="#ffffff" />}
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      <View style={styles.upiInputBox}>
+                        <Text style={styles.upiInputPrefix}>UPI ID:</Text>
+                        <TextInput
+                          style={styles.upiInput}
+                          value={customUpiId}
+                          onChangeText={setCustomUpiId}
+                          placeholder="username@upi"
+                          placeholderTextColor={colors.textMuted}
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    </>
+                  ) : (
+                    <View style={{ alignItems: 'center', paddingVertical: 8, gap: 10 }}>
+                      <View style={{ padding: 8, backgroundColor: '#ffffff', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' }}>
+                        <RealQRCode
+                          value={checkoutUpiUri}
+                          size={150}
+                          color="#0f172a"
+                          backgroundColor="#ffffff"
+                          errorCorrectionLevel="M"
+                          centerBadge={
+                            <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: '#10B981', alignItems: 'center', justifyContent: 'center' }}>
+                              <ShieldCheck size={14} color="#10B981" />
+                            </View>
+                          }
+                          centerBadgeSize={28}
+                        />
+                      </View>
+                      <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'center' }}>
+                        Scan using GPay, PhonePe, or Paytm on any secondary device
+                      </Text>
+                    </View>
+                  )}
                 </View>
               )}
             </TouchableOpacity>

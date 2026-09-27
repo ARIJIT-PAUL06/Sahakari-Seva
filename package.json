@@ -12,7 +12,8 @@
     "build": "npm --prefix Sahakari-Seva-main run build:web",
     "build:web": "npm --prefix Sahakari-Seva-main run build:web",
     "build:apk": "npm --prefix Sahakari-Seva-main run build:apk",
-    "build:aab": "npm --prefix Sahakari-Seva-main run build:aab"
+    "build:aab": "npm --prefix Sahakari-Seva-main run build:aab",
+    "claude": "powershell -ExecutionPolicy Bypass -File ./run-claude.ps1"
   },
   "dependencies": {
     "puppeteer-core": "^25.10.0"

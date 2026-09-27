@@ -37,6 +37,7 @@ import { radii, spacing, makeTypography, useTheme } from '../../theme';
 import type { Palette } from '../../theme';
 import { Card, Button, Badge } from '../../components/ui';
 import { Header } from '../../components/common/Header';
+import { RealQRCode } from '../../components/common/RealQRCode';
 import { FadeInView } from '../../animations';
 import { ApiClient } from '../../services/apiClient';
 import type { Worker } from '../../types';
@@ -379,17 +380,21 @@ export const WorkerProfileScreen: React.FC<{ navigation?: any }> = ({ navigation
             </View>
             <Text style={styles.qrModalSub}>{t('workerProfile.nfc_qr_sub', 'Scan for zero-commission cooperative verification')}</Text>
 
-            {/* Simulated QR Code Graphic */}
-            <View style={styles.qrFrame}>
-              <View style={styles.qrPattern}>
-                <View style={styles.qrCornerTopLeft} />
-                <View style={styles.qrCornerTopRight} />
-                <View style={styles.qrCornerBottomLeft} />
-                <View style={styles.qrCenterBadge}>
-                  <Shield size={24} color={colors.primary} />
-                  <Text style={styles.qrBadgeText}>CO-OP</Text>
-                </View>
-              </View>
+            {/* Genuine ISO-Compliant Worker ID QR Code */}
+            <View style={{ marginVertical: 12, alignItems: 'center' }}>
+              <RealQRCode
+                value={`https://sahakari-seva-six.vercel.app/worker/${worker?.worker_code || 'WRK-JPR-0101'}`}
+                size={170}
+                color="#0f172a"
+                backgroundColor="#ffffff"
+                errorCorrectionLevel="M"
+                centerBadge={
+                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#ffffff', borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                    <Shield size={14} color={colors.primary} />
+                  </View>
+                }
+                centerBadgeSize={30}
+              />
             </View>
 
             <View style={styles.qrInfoBox}>

@@ -1,11 +1,11 @@
-// mobile/src/components/worker/WorkerCompletionScannerModal.tsx
+// src/components/worker/WorkerCompletionScannerModal.tsx
 // ==============================================================================
 // WORKER COMPLETION SCANNER MODAL (CO-OP DUAL-KEY VERIFICATION)
-// Allows the worker to scan the customer's completion QR or manually input
-// the 4-digit PIN to verify and mark the service as completed.
+// Live camera barcode scanner to read customer's completion QR pass
+// with instant fallback to 4-digit manual PIN entry.
 // ==============================================================================
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,14 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Animated,
 } from 'react-native';
-import { QrCode, X, CheckCircle2, ShieldCheck, Camera } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import { QrCode, X, CheckCircle2, ShieldCheck, Camera, KeyRound } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { ApiClient } from '../../services/apiClient';
 import type { Booking } from '../../types';
+import { QRScannerView } from '../common/QRScannerView';
+import { UPIPaymentService } from '../../services/upiPaymentService';
 
 interface WorkerCompletionScannerModalProps {
   visible: boolean;
@@ -43,35 +45,19 @@ export const WorkerCompletionScannerModal: React.FC<WorkerCompletionScannerModal
   const [verifying, setVerifying] = useState(false);
   const [successAnim, setSuccessAnim] = useState(false);
 
-  // Animated scanning line
-  const scanLineAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     if (visible) {
       setPinInput('');
       setSuccessAnim(false);
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(scanLineAnim, {
-            toValue: 1,
-            duration: 1800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scanLineAnim, {
-            toValue: 0,
-            duration: 1800,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
+      setVerifying(false);
     }
-  }, [visible, scanLineAnim]);
+  }, [visible]);
 
   if (!visible || !booking) return null;
 
   const handleVerifyCode = async (codeToVerify: string) => {
     if (!codeToVerify.trim()) {
-      Alert.alert('Verification Code Required', 'Please enter the 4-digit code shown on the customer screen.');
+      Alert.alert('Verification Code Required', 'Please enter or scan the 4-digit code shown on the customer screen.');
       return;
     }
 
@@ -79,25 +65,43 @@ export const WorkerCompletionScannerModal: React.FC<WorkerCompletionScannerModal
       setVerifying(true);
       const res = await ApiClient.verifyAndCompleteJob(booking.id, codeToVerify.trim());
       setSuccessAnim(true);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+
       setTimeout(() => {
         setVerifying(false);
         onSuccess(res);
         onClose();
-      }, 700);
+      }, 750);
     } catch (err: any) {
       setVerifying(false);
-      Alert.alert('Verification Failed', err.message || 'Incorrect verification code. Please ask customer to display their QR.');
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined);
+      Alert.alert(
+        'Verification Failed',
+        err.message || 'Incorrect verification code. Please ask customer to display their QR or 4-digit PIN.'
+      );
     }
   };
 
-  const handleSimulateScan = () => {
-    handleVerifyCode(booking.completion_code || 'SIMULATED_QR_SCAN');
-  };
+  const handleCameraScanned = (scannedRaw: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => undefined);
 
-  const translateY = scanLineAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [10, 130],
-  });
+    const parsed = UPIPaymentService.parseCompletionPayload(scannedRaw);
+
+    // If payload contains a bookingId, verify it matches
+    if (parsed.bookingId && parsed.bookingId !== booking.id) {
+      Alert.alert(
+        'Mismatched Service Pass',
+        `This QR belongs to booking ${parsed.bookingCode || parsed.bookingId}, not the current job (${booking.booking_code}).`
+      );
+      return;
+    }
+
+    if (parsed.code) {
+      handleVerifyCode(parsed.code);
+    } else {
+      Alert.alert('Unrecognized QR Format', 'Please ask customer to display their Service Completion Pass.');
+    }
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -107,7 +111,7 @@ export const WorkerCompletionScannerModal: React.FC<WorkerCompletionScannerModal
           <View style={styles.header}>
             <View style={styles.titleWrap}>
               <QrCode size={18} color={colors.primary} />
-              <Text style={styles.title}>Scan Customer QR</Text>
+              <Text style={styles.title}>Scan Customer QR Pass</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <X size={18} color={colors.textSecondary} />
@@ -115,58 +119,33 @@ export const WorkerCompletionScannerModal: React.FC<WorkerCompletionScannerModal
           </View>
 
           <Text style={styles.subtitle}>
-            Ask customer to open their completion pass for {booking.booking_code}.
+            Point your camera at customer's completion QR for {booking.booking_code}.
           </Text>
 
-          {/* Scanner Viewfinder Box */}
-          <View style={styles.viewfinder}>
-            {/* Corner Crosshairs */}
-            <View style={[styles.corner, styles.cornerTL]} />
-            <View style={[styles.corner, styles.cornerTR]} />
-            <View style={[styles.corner, styles.cornerBL]} />
-            <View style={[styles.corner, styles.cornerBR]} />
-
-            {/* Laser scanning beam */}
-            {!successAnim && (
-              <Animated.View
-                style={[
-                  styles.laserBeam,
-                  {
-                    transform: [{ translateY }],
-                  },
-                ]}
-              />
-            )}
-
+          {/* Live Camera Scanner Viewport */}
+          <View style={styles.scannerWrapper}>
             {successAnim ? (
               <View style={styles.successBox}>
-                <CheckCircle2 size={44} color="#059669" />
-                <Text style={styles.successText}>Verified ✓</Text>
+                <CheckCircle2 size={52} color="#059669" />
+                <Text style={styles.successText}>Service Verified! ✓</Text>
+                <Text style={styles.successSub}>Job marked complete. Unlocking payment.</Text>
               </View>
             ) : (
-              <View style={styles.viewfinderContent}>
-                <Camera size={26} color={isDark ? '#94a3b8' : '#64748b'} />
-                <Text style={styles.viewfinderHint}>Align with Customer QR</Text>
-              </View>
+              <QRScannerView
+                onScanned={handleCameraScanned}
+                active={visible && !verifying && !successAnim}
+                width={230}
+                height={175}
+              />
             )}
           </View>
 
-          {/* 1-Tap Simulated Camera Scan */}
-          <TouchableOpacity
-            style={styles.scanSimBtn}
-            onPress={handleSimulateScan}
-            disabled={verifying}
-            activeOpacity={0.8}
-          >
-            {verifying ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <>
-                <ShieldCheck size={16} color="#ffffff" />
-                <Text style={styles.scanSimBtnText}>Scan Customer QR</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {verifying && (
+            <View style={styles.verifyingRow}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.verifyingText}>Verifying dual-key signature with cooperative ledger...</Text>
+            </View>
+          )}
 
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
@@ -202,12 +181,13 @@ export const WorkerCompletionScannerModal: React.FC<WorkerCompletionScannerModal
               disabled={pinInput.length < 4 || verifying}
               activeOpacity={0.8}
             >
+              <KeyRound size={14} color="#ffffff" style={{ marginRight: 4 }} />
               <Text style={styles.verifyPinBtnText}>Verify</Text>
             </TouchableOpacity>
           </View>
 
           <Text style={styles.coopNotice}>
-            Autonomous verification under Rajasthan Co-op Act §16
+            Autonomous cryptographic verification under Cooperative bylaws §16
           </Text>
         </Pressable>
       </Pressable>
@@ -228,7 +208,7 @@ const createStyles = (colors: any, isDark: boolean) =>
       backgroundColor: isDark ? '#1e293b' : '#ffffff',
       borderRadius: 20,
       width: '100%',
-      maxWidth: 345,
+      maxWidth: 350,
       padding: 18,
       alignItems: 'center',
       borderWidth: 1,
@@ -264,101 +244,47 @@ const createStyles = (colors: any, isDark: boolean) =>
       fontSize: 12,
       color: colors.textSecondary,
       textAlign: 'center',
-      marginBottom: 16,
+      marginBottom: 14,
       lineHeight: 16,
     },
-    viewfinder: {
-      width: 170,
-      height: 150,
-      backgroundColor: isDark ? 'rgba(0, 0, 0, 0.35)' : 'rgba(15, 23, 42, 0.04)',
-      borderRadius: 12,
-      position: 'relative',
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-      marginBottom: 16,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0',
-    },
-    corner: {
-      position: 'absolute',
-      width: 16,
-      height: 16,
-      borderColor: colors.primary,
-    },
-    cornerTL: {
-      top: 6,
-      left: 6,
-      borderTopWidth: 2.5,
-      borderLeftWidth: 2.5,
-      borderTopLeftRadius: 4,
-    },
-    cornerTR: {
-      top: 6,
-      right: 6,
-      borderTopWidth: 2.5,
-      borderRightWidth: 2.5,
-      borderTopRightRadius: 4,
-    },
-    cornerBL: {
-      bottom: 6,
-      left: 6,
-      borderBottomWidth: 2.5,
-      borderLeftWidth: 2.5,
-      borderBottomLeftRadius: 4,
-    },
-    cornerBR: {
-      bottom: 6,
-      right: 6,
-      borderBottomWidth: 2.5,
-      borderRightWidth: 2.5,
-      borderBottomRightRadius: 4,
-    },
-    laserBeam: {
-      position: 'absolute',
-      left: 10,
-      right: 10,
-      height: 2,
-      backgroundColor: colors.primary,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.8,
-      shadowRadius: 6,
-    },
-    viewfinderContent: {
-      alignItems: 'center',
-      gap: 6,
-    },
-    viewfinderHint: {
-      fontSize: 10,
-      color: colors.textMuted,
-      fontWeight: '600',
-    },
-    successBox: {
-      alignItems: 'center',
-      gap: 4,
-    },
-    successText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: '#059669',
-    },
-    scanSimBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      backgroundColor: '#059669',
-      paddingVertical: 10,
-      paddingHorizontal: 16,
-      borderRadius: 10,
+    scannerWrapper: {
       width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
       marginBottom: 12,
     },
-    scanSimBtnText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: '#ffffff',
+    successBox: {
+      width: 230,
+      height: 175,
+      backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ecfdf5',
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: '#059669',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 12,
+      gap: 6,
+    },
+    successText: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: '#059669',
+    },
+    successSub: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    verifyingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+    verifyingText: {
+      fontSize: 11,
+      color: colors.primary,
+      fontWeight: '600',
     },
     dividerRow: {
       flexDirection: 'row',
@@ -383,7 +309,7 @@ const createStyles = (colors: any, isDark: boolean) =>
       alignItems: 'center',
       gap: 8,
       width: '100%',
-      marginTop: 10,
+      marginTop: 8,
       marginBottom: 10,
     },
     pinInput: {
@@ -396,18 +322,19 @@ const createStyles = (colors: any, isDark: boolean) =>
       borderRadius: 10,
       paddingHorizontal: 10,
       paddingVertical: 8,
-      height: 40,
-      fontSize: 14,
+      height: 42,
+      fontSize: 15,
       fontWeight: '700',
       color: colors.textPrimary,
       textAlign: 'center',
-      letterSpacing: 2,
+      letterSpacing: 3,
     },
     verifyPinBtn: {
+      flexDirection: 'row',
       flexShrink: 0,
       backgroundColor: colors.primary,
       paddingHorizontal: 14,
-      height: 40,
+      height: 42,
       justifyContent: 'center',
       alignItems: 'center',
       borderRadius: 10,
@@ -416,7 +343,7 @@ const createStyles = (colors: any, isDark: boolean) =>
       opacity: 0.45,
     },
     verifyPinBtnText: {
-      fontSize: 12.5,
+      fontSize: 13,
       fontWeight: '700',
       color: '#ffffff',
     },

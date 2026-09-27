@@ -1,9 +1,11 @@
+// src/components/worker/WorkerPaymentQRModal.tsx
 // ==============================================================================
-// WORKER PAYMENT UPI QR MODAL — IN-PERSON ON-SITE PAYMENT COLLECTION
-// Displays cooperative UPI QR code for the customer to scan on the spot.
+// WORKER PAYMENT UPI QR MODAL — GENUINE IN-PERSON NPCI UPI COLLECTION
+// Displays valid ISO-compliant UPI QR code for the customer to scan on the spot
+// using Google Pay, PhonePe, Paytm, BHIM, Cred, or any Indian banking app.
 // ==============================================================================
 
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,11 +13,28 @@ import {
   Modal,
   TouchableOpacity,
   Pressable,
+  Platform,
+  Linking,
+  ActivityIndicator,
+  DeviceEventEmitter,
 } from 'react-native';
-import Svg, { Rect, G } from 'react-native-svg';
-import { ShieldCheck, X, Check, QrCode } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import {
+  ShieldCheck,
+  X,
+  Check,
+  QrCode,
+  Smartphone,
+  CheckCircle2,
+  Share2,
+  Copy,
+  ExternalLink,
+} from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import type { Booking } from '../../types';
+import { RealQRCode } from '../common/RealQRCode';
+import { UPIPaymentService, COOP_DEFAULT_VPA } from '../../services/upiPaymentService';
+import { DatabaseService } from '../../services/databaseService';
 
 interface WorkerPaymentQRModalProps {
   visible: boolean;
@@ -24,59 +43,7 @@ interface WorkerPaymentQRModalProps {
   workerName: string;
   onClose: () => void;
   onConfirmCash?: () => void;
-}
-
-function generateQRMatrix(seed: string): boolean[][] {
-  const size = 21;
-  const matrix: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
-
-  const placeFinder = (startX: number, startY: number) => {
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        if (
-          r === 0 || r === 6 || c === 0 || c === 6 ||
-          (r >= 2 && r <= 4 && c >= 2 && c <= 4)
-        ) {
-          matrix[startY + r][startX + c] = true;
-        } else {
-          matrix[startY + r][startX + c] = false;
-        }
-      }
-    }
-  };
-
-  placeFinder(0, 0);
-  placeFinder(size - 7, 0);
-  placeFinder(0, size - 7);
-
-  for (let i = 8; i < size - 8; i++) {
-    matrix[6][i] = i % 2 === 0;
-    matrix[i][6] = i % 2 === 0;
-  }
-
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0;
-  }
-
-  let bitIdx = 0;
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      const inTL = r < 8 && c < 8;
-      const inTR = r < 8 && c >= size - 8;
-      const inBL = r >= size - 8 && c < 8;
-      const inCenter = r >= 8 && r <= 12 && c >= 8 && c <= 12;
-
-      if (!inTL && !inTR && !inBL && !inCenter && r !== 6 && c !== 6) {
-        const val = ((hash >> (bitIdx % 24)) & 1) === 1;
-        matrix[r][c] = val || ((r * 3 + c * 7 + (bitIdx % 5)) % 2 === 0);
-        bitIdx++;
-      }
-    }
-  }
-
-  return matrix;
+  onPaymentReceived?: () => void;
 }
 
 export const WorkerPaymentQRModal: React.FC<WorkerPaymentQRModalProps> = ({
@@ -86,21 +53,82 @@ export const WorkerPaymentQRModal: React.FC<WorkerPaymentQRModalProps> = ({
   workerName,
   onClose,
   onConfirmCash,
+  onPaymentReceived,
 }) => {
   const { colors, isDark } = useTheme();
   const styles = createStyles(colors, isDark);
 
-  const upiId = 'sahakari.coop@npci';
-  const bookingCode = booking?.booking_code || 'BK-2026';
+  const [copied, setCopied] = useState(false);
+  const [paymentDetected, setPaymentDetected] = useState(false);
+  const [polling, setPolling] = useState(false);
 
-  const matrix = useMemo(() => {
-    return generateQRMatrix(`upi://pay?pa=${upiId}&pn=${encodeURIComponent(workerName)}&am=${amount}&tr=${bookingCode}`);
-  }, [upiId, workerName, amount, bookingCode]);
+  const bookingCode = booking?.booking_code || 'BK-2026';
+  const finalAmt = Number(amount) > 0 ? Number(amount) : Number(booking?.final_amount || booking?.estimated_amount || 0);
+
+  // Standard NPCI UPI URI
+  const upiUri = useMemo(() => {
+    return UPIPaymentService.buildUPIUri({
+      pa: COOP_DEFAULT_VPA,
+      pn: `Sahakari Seva - ${workerName || 'Professional'}`,
+      am: finalAmt,
+      cu: 'INR',
+      tn: `Service fee for ${bookingCode}`,
+      tr: `TXN-${booking?.id?.slice(0, 8) || Date.now().toString().slice(-8)}`,
+    });
+  }, [workerName, finalAmt, bookingCode, booking?.id]);
+
+  // Real-time listener: detects when payment is recorded in Supabase / Local DB
+  useEffect(() => {
+    if (!visible || !booking) return;
+
+    setPaymentDetected(false);
+
+    const checkStatus = async () => {
+      try {
+        const fresh = await DatabaseService.bookings.getById(booking.id);
+        if (fresh && fresh.payment_status === 'paid') {
+          setPaymentDetected(true);
+          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+          if (onPaymentReceived) onPaymentReceived();
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    // Initial check
+    checkStatus();
+
+    // Event listener
+    const sub = DeviceEventEmitter.addListener('app_booking_updated', checkStatus);
+
+    // 3-second polling fallback for active QR modal
+    const timer = setInterval(checkStatus, 3000);
+
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
+  }, [visible, booking?.id, onPaymentReceived]);
 
   if (!visible || !booking) return null;
 
-  const qrSize = 180;
-  const cellSize = qrSize / 21;
+  const qrSize = 190;
+
+  const handleCopyVpa = () => {
+    setCopied(true);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleOpenUPIApp = async () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => undefined);
+    try {
+      const opened = await Linking.openURL(upiUri);
+    } catch {
+      // In web or simulator without UPI apps
+    }
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -110,7 +138,7 @@ export const WorkerPaymentQRModal: React.FC<WorkerPaymentQRModalProps> = ({
           <View style={styles.header}>
             <View style={styles.titleWrap}>
               <QrCode size={18} color={colors.primary} />
-              <Text style={styles.title}>Customer Payment QR</Text>
+              <Text style={styles.title}>Customer UPI Payment QR</Text>
             </View>
             <TouchableOpacity
               onPress={onClose}
@@ -121,64 +149,85 @@ export const WorkerPaymentQRModal: React.FC<WorkerPaymentQRModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.subtitle}>
-            Ask customer to scan with any UPI app (GPay, PhonePe, Paytm, BHIM)
-          </Text>
-
-          {/* QR Code Canvas */}
-          <View style={styles.qrContainer}>
-            <Svg width={qrSize} height={qrSize}>
-              <Rect width={qrSize} height={qrSize} fill="#ffffff" rx={8} />
-              <G>
-                {matrix.map((row, rIdx) =>
-                  row.map((active, cIdx) =>
-                    active ? (
-                      <Rect
-                        key={`${rIdx}-${cIdx}`}
-                        x={cIdx * cellSize}
-                        y={rIdx * cellSize}
-                        width={cellSize}
-                        height={cellSize}
-                        fill="#0f172a"
-                      />
-                    ) : null
-                  )
-                )}
-              </G>
-            </Svg>
-
-            {/* Center CO-OP Emblem */}
-            <View style={styles.centerBadge}>
-              <ShieldCheck size={18} color="#059669" />
-            </View>
-          </View>
-
-          {/* Amount and UPI Tag */}
-          <View style={styles.amountBox}>
-            <Text style={styles.amountLabel}>PAYMENT DUE FOR {bookingCode}</Text>
-            <Text style={styles.amountValue}>₹{amount.toFixed(2)}</Text>
-            <Text style={styles.upiSubText}>Cooperative VPA: {upiId}</Text>
-          </View>
-
-          {/* Bottom Action Buttons */}
-          <View style={styles.buttonRow}>
-            {onConfirmCash && (
-              <TouchableOpacity
-                style={styles.cashConfirmBtn}
-                onPress={() => {
-                  onClose();
-                  onConfirmCash();
-                }}
-                activeOpacity={0.85}
-              >
-                <Check size={15} color="#ffffff" />
-                <Text style={styles.cashConfirmBtnText}>Customer Paid Cash</Text>
+          {paymentDetected ? (
+            <View style={styles.successState}>
+              <CheckCircle2 size={54} color="#059669" />
+              <Text style={styles.successTitle}>Payment Received! ✓</Text>
+              <Text style={styles.successSub}>
+                ₹{finalAmt.toFixed(2)} credited towards {bookingCode}. 85% net wage has been routed to your cooperative passbook.
+              </Text>
+              <TouchableOpacity style={styles.successDoneBtn} onPress={onClose} activeOpacity={0.85}>
+                <Text style={styles.successDoneBtnText}>Close & Finish</Text>
               </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.closeActionBtn} onPress={onClose} activeOpacity={0.8}>
-              <Text style={styles.closeActionBtnText}>Close QR</Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.subtitle}>
+                Ask customer to scan with any UPI app (GPay, PhonePe, Paytm, BHIM, Cred)
+              </Text>
+
+              {/* Real ISO-Compliant QR Code */}
+              <View style={styles.qrContainer}>
+                <RealQRCode
+                  value={upiUri}
+                  size={qrSize}
+                  color="#0f172a"
+                  backgroundColor="#ffffff"
+                  errorCorrectionLevel="M"
+                  centerBadge={
+                    <View style={styles.centerBadge}>
+                      <ShieldCheck size={16} color="#059669" />
+                    </View>
+                  }
+                  centerBadgeSize={32}
+                />
+              </View>
+
+              {/* Amount and UPI Tag */}
+              <View style={styles.amountBox}>
+                <Text style={styles.amountLabel}>AMOUNT DUE FOR {bookingCode}</Text>
+                <Text style={styles.amountValue}>₹{finalAmt.toFixed(2)}</Text>
+
+                <TouchableOpacity style={styles.vpaRow} onPress={handleCopyVpa} activeOpacity={0.7}>
+                  <Text style={styles.upiSubText}>Co-op VPA: {COOP_DEFAULT_VPA}</Text>
+                  {copied ? (
+                    <Check size={12} color="#059669" />
+                  ) : (
+                    <Copy size={12} color={colors.textMuted} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Optional: Open in UPI App if customer is viewing on device */}
+              {Platform.OS !== 'web' && (
+                <TouchableOpacity style={styles.upiIntentBtn} onPress={handleOpenUPIApp} activeOpacity={0.8}>
+                  <Smartphone size={14} color="#2563eb" />
+                  <Text style={styles.upiIntentBtnText}>Launch UPI App on This Device</Text>
+                  <ExternalLink size={12} color="#2563eb" />
+                </TouchableOpacity>
+              )}
+
+              {/* Bottom Action Buttons */}
+              <View style={styles.buttonRow}>
+                {onConfirmCash && (
+                  <TouchableOpacity
+                    style={styles.cashConfirmBtn}
+                    onPress={() => {
+                      onClose();
+                      onConfirmCash();
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Check size={15} color="#ffffff" />
+                    <Text style={styles.cashConfirmBtnText}>Customer Paid in Cash</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.closeActionBtn} onPress={onClose} activeOpacity={0.8}>
+                  <Text style={styles.closeActionBtnText}>Close QR Code</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </Pressable>
       </Pressable>
     </Modal>
@@ -198,7 +247,7 @@ const createStyles = (colors: any, isDark: boolean) =>
       backgroundColor: isDark ? '#1e293b' : '#ffffff',
       borderRadius: 20,
       width: '100%',
-      maxWidth: 340,
+      maxWidth: 345,
       padding: 20,
       alignItems: 'center',
       borderWidth: 1,
@@ -233,14 +282,16 @@ const createStyles = (colors: any, isDark: boolean) =>
       fontSize: 12,
       color: colors.textSecondary,
       textAlign: 'center',
-      marginBottom: 16,
+      marginBottom: 14,
       lineHeight: 16,
+      paddingHorizontal: 8,
     },
     qrContainer: {
-      padding: 12,
+      padding: 10,
       backgroundColor: '#ffffff',
       borderRadius: 16,
-      position: 'relative',
+      borderWidth: 1,
+      borderColor: '#e2e8f0',
       justifyContent: 'center',
       alignItems: 'center',
       shadowColor: '#000',
@@ -250,23 +301,19 @@ const createStyles = (colors: any, isDark: boolean) =>
       elevation: 4,
     },
     centerBadge: {
-      position: 'absolute',
-      width: 34,
-      height: 34,
-      borderRadius: 8,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
       backgroundColor: '#ffffff',
+      borderWidth: 1.5,
+      borderColor: '#059669',
       justifyContent: 'center',
       alignItems: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 3,
     },
     amountBox: {
       alignItems: 'center',
-      marginTop: 14,
-      marginBottom: 16,
+      marginTop: 12,
+      marginBottom: 12,
     },
     amountLabel: {
       fontSize: 10,
@@ -280,11 +327,39 @@ const createStyles = (colors: any, isDark: boolean) =>
       fontWeight: '900',
       color: colors.textPrimary,
     },
+    vpaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      marginTop: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#f1f5f9',
+    },
     upiSubText: {
       fontSize: 11,
       fontWeight: '600',
       color: colors.textSecondary,
-      marginTop: 2,
+    },
+    upiIntentBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#eff6ff',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(37, 99, 235, 0.3)' : '#bfdbfe',
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      width: '100%',
+      marginBottom: 10,
+    },
+    upiIntentBtnText: {
+      fontSize: 11.5,
+      fontWeight: '700',
+      color: '#2563eb',
     },
     buttonRow: {
       width: '100%',
@@ -296,7 +371,7 @@ const createStyles = (colors: any, isDark: boolean) =>
       justifyContent: 'center',
       gap: 6,
       backgroundColor: '#059669',
-      paddingVertical: 12,
+      paddingVertical: 11,
       borderRadius: 10,
     },
     cashConfirmBtnText: {
@@ -305,7 +380,7 @@ const createStyles = (colors: any, isDark: boolean) =>
       color: '#ffffff',
     },
     closeActionBtn: {
-      paddingVertical: 10,
+      paddingVertical: 9,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: 10,
@@ -314,8 +389,37 @@ const createStyles = (colors: any, isDark: boolean) =>
       backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#f8fafc',
     },
     closeActionBtnText: {
-      fontSize: 12.5,
+      fontSize: 12,
       fontWeight: '700',
       color: colors.textSecondary,
+    },
+    successState: {
+      alignItems: 'center',
+      paddingVertical: 24,
+      gap: 12,
+    },
+    successTitle: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: '#059669',
+    },
+    successSub: {
+      fontSize: 12.5,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 18,
+      paddingHorizontal: 10,
+    },
+    successDoneBtn: {
+      backgroundColor: '#059669',
+      paddingVertical: 11,
+      paddingHorizontal: 32,
+      borderRadius: 10,
+      marginTop: 8,
+    },
+    successDoneBtnText: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: '#ffffff',
     },
   });

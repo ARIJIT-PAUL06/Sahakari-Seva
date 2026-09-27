@@ -1,8 +1,8 @@
-// mobile/src/components/common/CompletionQRModal.tsx
+// src/components/common/CompletionQRModal.tsx
 // ==============================================================================
 // CUSTOMER COMPLETION QR MODAL (CO-OP DUAL-KEY VERIFICATION)
-// Uncluttered, elegant modal displaying the customer's single-use completion QR
-// and 4-digit fallback PIN for worker scan sign-off.
+// Displays genuine, ISO-standard QR code with cryptographic verification payload
+// and 4-digit fallback PIN for worker camera scan sign-off.
 // ==============================================================================
 
 import React, { useMemo, useEffect } from 'react';
@@ -14,75 +14,17 @@ import {
   TouchableOpacity,
   Pressable,
 } from 'react-native';
-import Svg, { Rect, G } from 'react-native-svg';
-import { ShieldCheck, X, CheckCircle2 } from 'lucide-react-native';
+import { ShieldCheck, X, CheckCircle2, Lock } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import type { Booking } from '../../types';
+import { RealQRCode } from './RealQRCode';
+import { UPIPaymentService } from '../../services/upiPaymentService';
 
 interface CompletionQRModalProps {
   visible: boolean;
   booking: Booking | null;
   onClose: () => void;
   onVerifyAndPay?: () => void;
-}
-
-// Generate a deterministic 21x21 QR pattern based on booking code and secret code
-function generateQRMatrix(seed: string): boolean[][] {
-  const size = 21;
-  const matrix: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
-
-  // Helper to place 7x7 Finder Pattern
-  const placeFinder = (startX: number, startY: number) => {
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        if (
-          r === 0 || r === 6 || c === 0 || c === 6 ||
-          (r >= 2 && r <= 4 && c >= 2 && c <= 4)
-        ) {
-          matrix[startY + r][startX + c] = true;
-        } else {
-          matrix[startY + r][startX + c] = false;
-        }
-      }
-    }
-  };
-
-  // Top-left, top-right, bottom-left finder patterns
-  placeFinder(0, 0);
-  placeFinder(size - 7, 0);
-  placeFinder(0, size - 7);
-
-  // Timing patterns
-  for (let i = 8; i < size - 8; i++) {
-    matrix[6][i] = i % 2 === 0;
-    matrix[i][6] = i % 2 === 0;
-  }
-
-  // Hash-based data filler
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash << 5) - hash + seed.charCodeAt(i);
-    hash |= 0;
-  }
-
-  let bitIdx = 0;
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      // Skip finder zones
-      const inTL = r < 9 && c < 9;
-      const inTR = r < 9 && c >= size - 8;
-      const inBL = r >= size - 8 && c < 9;
-      const inCenter = r >= 8 && r <= 12 && c >= 8 && c <= 12;
-
-      if (!inTL && !inTR && !inBL && !inCenter && r !== 6 && c !== 6) {
-        const val = ((hash >> (bitIdx % 24)) & 1) === 1;
-        matrix[r][c] = val || ((r * 3 + c * 7 + (bitIdx % 5)) % 2 === 0);
-        bitIdx++;
-      }
-    }
-  }
-
-  return matrix;
 }
 
 export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
@@ -96,12 +38,20 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
 
   const verificationCode = booking?.completion_code || '8492';
   const bookingCode = booking?.booking_code || 'BK-2026';
+  const amount = Number(booking?.final_amount || booking?.estimated_amount || 0);
   const workerName =
     booking?.worker?.profile?.full_name || (booking?.worker as any)?.name || 'Service Professional';
 
-  const matrix = useMemo(() => {
-    return generateQRMatrix(`${bookingCode}-${verificationCode}`);
-  }, [bookingCode, verificationCode]);
+  // Generate ISO-compliant JSON verification payload
+  const qrPayload = useMemo(() => {
+    if (!booking) return '';
+    return UPIPaymentService.buildCompletionPayload(
+      booking.id,
+      bookingCode,
+      verificationCode,
+      amount
+    );
+  }, [booking?.id, bookingCode, verificationCode, amount]);
 
   useEffect(() => {
     if (visible && booking && booking.status === 'completed') {
@@ -111,8 +61,7 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
 
   if (!visible || !booking) return null;
 
-  const qrSize = 180;
-  const cellSize = qrSize / 21;
+  const qrSize = 190;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -130,35 +79,24 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
           </View>
 
           <Text style={styles.subtitle}>
-            Show this QR to {workerName} to verify work and authorize completion.
+            Show this scannable QR to {workerName} to verify work and authorize completion.
           </Text>
 
-          {/* QR Code Canvas */}
+          {/* Genuine ISO-Compliant QR Code */}
           <View style={styles.qrContainer}>
-            <Svg width={qrSize} height={qrSize}>
-              <Rect width={qrSize} height={qrSize} fill="#ffffff" rx={8} />
-              <G>
-                {matrix.map((row, rIdx) =>
-                  row.map((active, cIdx) =>
-                    active ? (
-                      <Rect
-                        key={`${rIdx}-${cIdx}`}
-                        x={cIdx * cellSize}
-                        y={rIdx * cellSize}
-                        width={cellSize}
-                        height={cellSize}
-                        fill="#0f172a"
-                      />
-                    ) : null
-                  )
-                )}
-              </G>
-            </Svg>
-
-            {/* Center CO-OP Shield Emblem */}
-            <View style={styles.centerBadge}>
-              <ShieldCheck size={18} color="#059669" />
-            </View>
+            <RealQRCode
+              value={qrPayload}
+              size={qrSize}
+              color="#0f172a"
+              backgroundColor="#ffffff"
+              errorCorrectionLevel="M"
+              centerBadge={
+                <View style={styles.centerBadge}>
+                  <ShieldCheck size={16} color="#059669" />
+                </View>
+              }
+              centerBadgeSize={32}
+            />
           </View>
 
           {/* 4-Digit Manual PIN Fallback */}
@@ -177,9 +115,9 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
           <View style={styles.metaRow}>
             <Text style={styles.metaText}>{bookingCode}</Text>
             <Text style={styles.metaDot}>•</Text>
-            <Text style={styles.metaText}>₹{booking.final_amount || booking.estimated_amount}</Text>
+            <Text style={styles.metaText}>₹{amount.toFixed(2)}</Text>
             <Text style={styles.metaDot}>•</Text>
-            <Text style={styles.metaSuccess}>100% Secure</Text>
+            <Text style={styles.metaSuccess}>100% Verified</Text>
           </View>
 
           {onVerifyAndPay && (
@@ -191,11 +129,11 @@ export const CompletionQRModal: React.FC<CompletionQRModalProps> = ({
               }}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={`Verify Work Done & Pay Now (₹${booking.final_amount || booking.estimated_amount})`}
+              accessibilityLabel={`Verify Work Done & Pay Now (₹${amount.toFixed(2)})`}
             >
               <CheckCircle2 size={16} color="#ffffff" />
               <Text style={styles.verifyAndPayBtnText}>
-                Verify Work Done & Pay (₹{booking.final_amount || booking.estimated_amount}) →
+                Verify Work Done & Pay (₹{amount.toFixed(2)}) →
               </Text>
             </TouchableOpacity>
           )}
@@ -257,46 +195,44 @@ const createStyles = (colors: any, isDark: boolean) =>
       fontSize: 12,
       color: colors.textSecondary,
       textAlign: 'center',
-      marginBottom: 16,
+      marginBottom: 14,
       lineHeight: 16,
     },
     qrContainer: {
-      padding: 12,
+      padding: 10,
       backgroundColor: '#ffffff',
       borderRadius: 16,
       borderWidth: 1,
       borderColor: '#e2e8f0',
-      position: 'relative',
-      alignItems: 'center',
       justifyContent: 'center',
+      alignItems: 'center',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 3,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 10,
+      elevation: 4,
     },
     centerBadge: {
-      position: 'absolute',
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
       backgroundColor: '#ffffff',
       borderWidth: 1.5,
       borderColor: '#059669',
-      alignItems: 'center',
       justifyContent: 'center',
+      alignItems: 'center',
     },
     codeContainer: {
       alignItems: 'center',
-      marginTop: 16,
-      marginBottom: 12,
+      marginTop: 14,
+      marginBottom: 10,
     },
     codeLabel: {
       fontSize: 10,
       fontWeight: '700',
       color: colors.textMuted,
       letterSpacing: 0.8,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     pinBoxes: {
       flexDirection: 'row',
@@ -304,7 +240,7 @@ const createStyles = (colors: any, isDark: boolean) =>
     },
     pinBox: {
       width: 38,
-      height: 42,
+      height: 40,
       borderRadius: 8,
       backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : '#f1f5f9',
       borderWidth: 1.5,
@@ -313,7 +249,7 @@ const createStyles = (colors: any, isDark: boolean) =>
       justifyContent: 'center',
     },
     pinDigit: {
-      fontSize: 20,
+      fontSize: 19,
       fontWeight: '800',
       color: colors.textPrimary,
       letterSpacing: 1,
@@ -322,7 +258,7 @@ const createStyles = (colors: any, isDark: boolean) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginBottom: 16,
+      marginBottom: 14,
     },
     metaText: {
       fontSize: 11,
@@ -362,14 +298,14 @@ const createStyles = (colors: any, isDark: boolean) =>
     },
     doneBtn: {
       backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#f1f5f9',
-      paddingVertical: 10,
+      paddingVertical: 9,
       paddingHorizontal: 24,
       borderRadius: 10,
       width: '100%',
       alignItems: 'center',
     },
     doneBtnText: {
-      fontSize: 13,
+      fontSize: 12.5,
       fontWeight: '600',
       color: colors.textPrimary,
     },
