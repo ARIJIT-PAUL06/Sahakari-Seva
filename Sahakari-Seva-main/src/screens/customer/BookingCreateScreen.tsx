@@ -1,5 +1,5 @@
 // ==============================================================================
-// CUSTOMER BOOKING CREATE SCREEN — REAL-TIME SCHEDULE CONFLICTS & ALTERNATIVES
+// CUSTOMER BOOKING CREATE SCREEN — INTERACTIVE CALENDAR & REAL-TIME SLOTS
 // ==============================================================================
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -14,52 +14,77 @@ import {
   Alert,
   ActivityIndicator,
   DeviceEventEmitter,
-  Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Header } from '../../components/common/Header';
 import { ApiClient } from '../../services/apiClient';
 import {
   ShieldCheck,
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   MapPin,
   Zap,
   AlertCircle,
-  CheckCircle2,
   Users,
   Sparkles,
-  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import type { Palette } from '../../theme';
 import { BookingConfirmedModal } from '../../components/common/BookingConfirmedModal';
 import { useRole } from '../../context/RoleContext';
-import type { Booking, NearbyWorkerResult } from '../../types';
+import type { Booking } from '../../types';
 import { useAppBackHandler } from '../../hooks/useAppBackHandler';
 import { MOCK_CATEGORIES } from '../../services/mockDatabase';
 import { translateTrade } from '../../i18n';
-import { FadeInView, ScalePressable } from '../../animations';
+import { FadeInView } from '../../animations';
 
-const localToday = () => {
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const getTodayDate = () => {
   const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return {
+    year: y,
+    month: now.getMonth(), // 0-11
+    day: now.getDate(),
+    dateStr: `${y}-${m}-${d}`,
+  };
 };
 
 export const STANDARD_TIME_SLOTS = [
+  '08:00 AM',
+  '08:30 AM',
   '09:00 AM',
+  '09:30 AM',
   '10:00 AM',
+  '10:30 AM',
   '11:00 AM',
+  '11:30 AM',
   '12:00 PM',
+  '12:30 PM',
   '01:00 PM',
+  '01:30 PM',
   '02:00 PM',
+  '02:30 PM',
   '03:00 PM',
+  '03:30 PM',
   '04:00 PM',
+  '04:30 PM',
   '05:00 PM',
+  '05:30 PM',
   '06:00 PM',
+  '06:30 PM',
   '07:00 PM',
+  '07:30 PM',
   '08:00 PM',
 ];
 
@@ -82,6 +107,8 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
   const styles = createStyles(colors, isDark);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  const todayInfo = useMemo(() => getTodayDate(), []);
+
   const initialEmergency = Boolean(
     route?.params?.isEmergency ||
       route?.params?.emergencyOnly ||
@@ -95,7 +122,26 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
   const { refresh: refreshNotifications } = useRole();
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
 
-  const [date, setDate] = useState(route?.params?.requestedDate || localToday());
+  // Selected date state (YYYY-MM-DD)
+  const [date, setDate] = useState(route?.params?.requestedDate || todayInfo.dateStr);
+
+  // Calendar Year and Month for monthly view
+  const [calendarYear, setCalendarYear] = useState<number>(() => {
+    if (route?.params?.requestedDate) {
+      const parts = route.params.requestedDate.split('-');
+      if (parts.length === 3) return Number(parts[0]);
+    }
+    return todayInfo.year;
+  });
+
+  const [calendarMonth, setCalendarMonth] = useState<number>(() => {
+    if (route?.params?.requestedDate) {
+      const parts = route.params.requestedDate.split('-');
+      if (parts.length === 3) return Number(parts[1]) - 1;
+    }
+    return todayInfo.month;
+  });
+
   const [time, setTime] = useState(
     initialEmergency
       ? 'Immediate (< 15-30 min dispatch)'
@@ -114,19 +160,15 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
 
   // Real-Time worker bookings for slot collision analysis
   const [workerBookings, setWorkerBookings] = useState<Booking[]>([]);
-  const [loadingBookings, setLoadingBookings] = useState(true);
 
   const activeWorkerId = worker.workerId || worker.id || 'w0000000-0000-0000-0000-000000000001';
 
   const fetchWorkerBookings = async () => {
     try {
-      setLoadingBookings(true);
       const list = await ApiClient.getBookings(undefined, activeWorkerId);
       setWorkerBookings(list || []);
     } catch {
       // Fallback
-    } finally {
-      setLoadingBookings(false);
     }
   };
 
@@ -147,11 +189,110 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
     }
     if (route?.params?.requestedDate) {
       setDate(route.params.requestedDate);
+      const parts = route.params.requestedDate.split('-');
+      if (parts.length === 3) {
+        setCalendarYear(Number(parts[0]));
+        setCalendarMonth(Number(parts[1]) - 1);
+      }
     }
     if (route?.params?.requestedTime) {
       setTime(route.params.requestedTime);
     }
   }, [route?.params]);
+
+  // Calendar days grid computation
+  const calendarDays = useMemo(() => {
+    const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+    const days: Array<{
+      day: number | null;
+      dateStr: string | null;
+      isToday: boolean;
+      isSelected: boolean;
+      isPast: boolean;
+      hasWorkerBookings: boolean;
+    }> = [];
+
+    // Preceding empty slots
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push({
+        day: null,
+        dateStr: null,
+        isToday: false,
+        isSelected: false,
+        isPast: false,
+        hasWorkerBookings: false,
+      });
+    }
+
+    // Days of current month
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const isToday = dateStr === todayInfo.dateStr;
+      const isSelected = dateStr === date;
+      const isPast = dateStr < todayInfo.dateStr;
+      const hasWorkerBookings = workerBookings.some(
+        (b) =>
+          b.booking_date === dateStr &&
+          (b.status === 'accepted' || b.status === 'in_progress')
+      );
+
+      days.push({
+        day: d,
+        dateStr,
+        isToday,
+        isSelected,
+        isPast,
+        hasWorkerBookings,
+      });
+    }
+
+    return days;
+  }, [calendarYear, calendarMonth, date, todayInfo, workerBookings]);
+
+  // Month navigation handlers
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarYear((prev) => prev - 1);
+      setCalendarMonth(11);
+    } else {
+      setCalendarMonth((prev) => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarYear((prev) => prev + 1);
+      setCalendarMonth(0);
+    } else {
+      setCalendarMonth((prev) => prev + 1);
+    }
+  };
+
+  const handleJumpToToday = () => {
+    const cur = getTodayDate();
+    setCalendarYear(cur.year);
+    setCalendarMonth(cur.month);
+    setDate(cur.dateStr);
+  };
+
+  const selectedDateFormatted = useMemo(() => {
+    if (!date) return '';
+    try {
+      const parts = date.split('-');
+      if (parts.length === 3) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        return d.toLocaleDateString('en-IN', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        });
+      }
+    } catch {}
+    return date;
+  }, [date]);
 
   // Evaluate conflict mapping for all standard slots on chosen date
   const slotStatusMap = useMemo(() => {
@@ -206,7 +347,7 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
   const handleToggleEmergency = (val: boolean) => {
     setIsEmergency(val);
     if (val) {
-      setDate(localToday());
+      setDate(todayInfo.dateStr);
       setTime('Immediate (< 15-30 min dispatch)');
       if (!description.trim()) {
         setDescription('Urgent 24/7 emergency dispatch requested for immediate on-site assistance.');
@@ -220,7 +361,6 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
     if (firstAvailableSlot) {
       setTime(firstAvailableSlot);
     }
-    scrollViewRef.current?.scrollTo({ y: 160, animated: true });
   };
 
   const handleFindClosestAlternative = async () => {
@@ -245,7 +385,6 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
           closestWorkerName: closest.name,
         });
       } else {
-        // If no alternative in trade, navigate to general search
         navigation.navigate('WorkerSearch', {
           selectedCategory: workerTrade,
           alternativeBanner: true,
@@ -286,7 +425,12 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
         t('booking.slot_busy_title', 'Professional Busy in this Time Slot'),
         t(
           'booking.slot_busy_desc',
-          `${worker.name || 'This professional'} is busy at ${time}. Please select an open slot or find an alternative.`
+          {
+            name: worker.name || 'This professional',
+            time,
+            date,
+            defaultValue: `${worker.name || 'This professional'} is busy at ${time}. Please select an open slot or find an alternative.`
+          }
         )
       );
       return;
@@ -386,68 +530,139 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
           </View>
         </View>
 
-        {/* Date & Time Schedule Section */}
+        {/* ========================================================================= */}
+        {/* 1. DATE CALENDAR CARD (Interactive Monthly Calendar) */}
+        {/* ========================================================================= */}
+        <View style={styles.calendarCard}>
+          {/* Header Row with Today Jump */}
+          <View style={styles.calendarHeaderRow}>
+            <View style={styles.calendarHeaderTitleGroup}>
+              <View style={styles.calendarIconCircle}>
+                <CalendarIcon size={16} color={colors.primary} />
+              </View>
+              <View>
+                <Text style={styles.calendarSectionTitle}>{t('booking.date_label')}</Text>
+                <Text style={styles.calendarSectionSub}>
+                  {selectedDateFormatted || 'Select booking date'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.todayPillBtn}
+              onPress={handleJumpToToday}
+              activeOpacity={0.7}
+            >
+              <Clock size={11} color={colors.primary} />
+              <Text style={styles.todayPillBtnText}>{t('calendar.today', 'Today')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Month Navigation Strip */}
+          <View style={styles.monthNavStrip}>
+            <TouchableOpacity
+              style={styles.monthArrowBtn}
+              onPress={handlePrevMonth}
+              activeOpacity={0.7}
+            >
+              <ChevronLeft size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+
+            <Text style={styles.monthLabelText}>
+              {MONTH_NAMES[calendarMonth]} {calendarYear}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.monthArrowBtn}
+              onPress={handleNextMonth}
+              activeOpacity={0.7}
+            >
+              <ChevronRight size={18} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Weekday Row */}
+          <View style={styles.weekdayRow}>
+            {WEEKDAY_NAMES.map((w, idx) => (
+              <View key={w} style={styles.weekdayCol}>
+                <Text
+                  style={[
+                    styles.weekdayText,
+                    idx === 0 && { color: colors.danger },
+                  ]}
+                >
+                  {w}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Calendar Days Grid */}
+          <View style={styles.daysGrid}>
+            {calendarDays.map((item, idx) => {
+              if (item.day === null) {
+                return <View key={`empty-${idx}`} style={styles.dayCell} />;
+              }
+
+              return (
+                <TouchableOpacity
+                  key={item.dateStr!}
+                  style={styles.dayCell}
+                  onPress={() => {
+                    if (!item.isPast) {
+                      setDate(item.dateStr!);
+                    }
+                  }}
+                  disabled={item.isPast}
+                  activeOpacity={0.75}
+                >
+                  <View
+                    style={[
+                      styles.dayBadge,
+                      item.isSelected && styles.dayBadgeSelected,
+                      item.isToday && !item.isSelected && styles.dayBadgeToday,
+                      item.isPast && styles.dayBadgePast,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayNumberText,
+                        item.isSelected && styles.dayNumberTextSelected,
+                        item.isToday && !item.isSelected && styles.dayNumberTextToday,
+                        item.isPast && styles.dayNumberTextPast,
+                      ]}
+                    >
+                      {item.day}
+                    </Text>
+
+                    {item.hasWorkerBookings && !item.isPast && (
+                      <View
+                        style={[
+                          styles.dayBusyDot,
+                          item.isSelected && styles.dayBusyDotSelected,
+                        ]}
+                      />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Active Date Confirmation Bar */}
+          <View style={styles.selectedDateBadgeRow}>
+            <View style={styles.selectedDateDot} />
+            <Text style={styles.selectedDateBadgeText}>
+              Selected: <Text style={{ fontWeight: '800' }}>{selectedDateFormatted}</Text>
+            </Text>
+          </View>
+        </View>
+
+        {/* ========================================================================= */}
+        {/* 2. TIME SLOT PANEL (Horizontal Scrollbar - No Free Text Input) */}
+        {/* ========================================================================= */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Calendar size={16} color={colors.primary} />
-            <Text style={styles.sectionTitle}>{t('booking.date_label')}</Text>
-          </View>
-
-          {/* Quick Date Chips (Today / Tomorrow / Custom) */}
-          <View style={styles.quickDateRow}>
-            <TouchableOpacity
-              style={[
-                styles.quickDateChip,
-                date === localToday() && styles.quickDateChipActive,
-              ]}
-              onPress={() => setDate(localToday())}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.quickDateChipText,
-                  date === localToday() && styles.quickDateChipTextActive,
-                ]}
-              >
-                Today ({localToday().slice(5)})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.quickDateChip,
-                date !== localToday() && styles.quickDateChipActive,
-              ]}
-              onPress={() => {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
-                const d = String(tomorrow.getDate()).padStart(2, '0');
-                setDate(`${tomorrow.getFullYear()}-${m}-${d}`);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.quickDateChipText,
-                  date !== localToday() && styles.quickDateChipTextActive,
-                ]}
-              >
-                Tomorrow
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <TextInput
-            style={styles.input}
-            value={date}
-            onChangeText={setDate}
-            placeholder={t('booking.placeholder_date')}
-            placeholderTextColor={colors.textMuted}
-          />
-
-          {/* Time Slot Picker */}
-          <View style={[styles.sectionHeaderRow, { marginTop: 16 }]}>
             <Clock size={16} color={colors.primary} />
             <Text style={styles.sectionTitle}>{t('booking.time_label')}</Text>
           </View>
@@ -455,11 +670,16 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
           {!isEmergency ? (
             <>
               <Text style={styles.slotSubtitle}>
-                Select an available time slot for {worker.name?.split(' ')[0] || 'the professional'}:
+                Scroll horizontally to choose an available time slot:
               </Text>
 
-              {/* Time Slots Grid */}
-              <View style={styles.timeSlotsGrid}>
+              {/* Horizontal Scrollable Time Slots Strip */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={true}
+                contentContainerStyle={styles.timeSlotsScrollContent}
+                style={styles.timeSlotsScrollView}
+              >
                 {STANDARD_TIME_SLOTS.map((slot) => {
                   const isSelected = time === slot;
                   const isBusy = slotStatusMap[slot]?.isBusy;
@@ -468,15 +688,15 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
                     <TouchableOpacity
                       key={slot}
                       style={[
-                        styles.timeSlotChip,
-                        isSelected && styles.timeSlotChipSelected,
-                        isBusy && !isSelected && styles.timeSlotChipBusy,
-                        isBusy && isSelected && styles.timeSlotChipBusySelected,
+                        styles.timeSlotPill,
+                        isSelected && styles.timeSlotPillSelected,
+                        isBusy && !isSelected && styles.timeSlotPillBusy,
+                        isBusy && isSelected && styles.timeSlotPillBusySelected,
                       ]}
                       onPress={() => setTime(slot)}
                       activeOpacity={0.75}
                     >
-                      <View style={styles.slotContentRow}>
+                      <View style={styles.slotDotAndText}>
                         <View
                           style={[
                             styles.slotDot,
@@ -486,9 +706,9 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
                         />
                         <Text
                           style={[
-                            styles.timeSlotText,
-                            isSelected && styles.timeSlotTextSelected,
-                            isBusy && styles.timeSlotTextBusy,
+                            styles.timeSlotPillText,
+                            isSelected && styles.timeSlotPillTextSelected,
+                            isBusy && styles.timeSlotPillTextBusy,
                           ]}
                         >
                           {slot}
@@ -503,12 +723,12 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
                       >
                         {isBusy
                           ? t('booking.slot_booked', 'Booked')
-                          : t('booking.slot_available', 'Free')}
+                          : t('booking.slot_available', 'Available')}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
             </>
           ) : (
             <View style={styles.emergencyTimeBox}>
@@ -518,20 +738,13 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
               </Text>
             </View>
           )}
-
-          {/* Custom Time Input */}
-          <TextInput
-            style={[styles.input, { marginTop: 10 }]}
-            value={time}
-            onChangeText={setTime}
-            placeholder={t('booking.placeholder_time')}
-            placeholderTextColor={colors.textMuted}
-          />
         </View>
 
-        {/* Schedule Collision Alert Card (Shown right below Time section when slot collides) */}
+        {/* ========================================================================= */}
+        {/* 3. SCHEDULE COLLISION ALERT CARD (Shown right below Time section) */}
+        {/* ========================================================================= */}
         {isSlotColliding && (
-          <FadeInView distance={10} duration={280}>
+          <FadeInView distance={8} duration={240}>
             <View style={styles.collisionCard}>
               <View style={styles.collisionHeaderRow}>
                 <AlertCircle size={20} color="#D97706" />
@@ -543,11 +756,16 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
               <Text style={styles.collisionDesc}>
                 {t(
                   'booking.slot_busy_desc',
-                  `${worker.name || 'This professional'} is already committed to an active assignment at ${time} on ${date}. Please select a different time slot or find a nearby alternative professional.`
+                  {
+                    name: worker.name || 'This professional',
+                    time,
+                    date,
+                    defaultValue: `${worker.name || 'This professional'} is already committed to an active assignment at ${time} on ${date}. Please select a different time slot or find a nearby alternative professional.`
+                  }
                 )}
               </Text>
 
-              {/* Inline Shortcut Actions */}
+              {/* Inline Helper Shortcut Actions */}
               <View style={styles.collisionActionsRow}>
                 <TouchableOpacity
                   style={styles.collisionActionAltBtn}
@@ -690,65 +908,36 @@ export const BookingCreateScreen: React.FC<{ route: any; navigation: any }> = ({
           </View>
         </View>
 
-        {/* Bottom Action Area: Either Normal Submit or Collision Redirection Buttons */}
-        {isSlotColliding ? (
-          <View style={styles.conflictBottomActionCard}>
-            <View style={styles.conflictBottomHeader}>
-              <AlertCircle size={16} color="#D97706" />
-              <Text style={styles.conflictBottomHeaderText}>
-                Slot unavailable ({time}). Choose an option:
-              </Text>
-            </View>
-
-            <View style={styles.conflictButtonGrid}>
-              <TouchableOpacity
-                style={styles.conflictSelectSlotBtn}
-                onPress={handleSelectDifferentTime}
-                activeOpacity={0.85}
-              >
-                <Clock size={16} color="#B86A00" />
-                <Text style={styles.conflictSelectSlotBtnText}>
-                  {t('booking.select_different_time', 'Select Different Time Slot')}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.conflictFindAltBtn}
-                onPress={handleFindClosestAlternative}
-                activeOpacity={0.85}
-                disabled={findingAlternative}
-              >
-                {findingAlternative ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Users size={16} color="#FFFFFF" />
-                    <Text style={styles.conflictFindAltBtnText}>
-                      {t('booking.find_closest_alternative', 'Find Closest Alternative')}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={[styles.submitBtn, isEmergency && styles.submitBtnEmergency]}
-            onPress={handleSubmit}
-            disabled={submitting}
-            activeOpacity={0.85}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color={colors.textInverse} />
-            ) : (
-              <Text style={styles.submitBtnText}>
-                {isEmergency
-                  ? `🚨 Request Emergency Dispatch (₹${finalAmount})`
-                  : t('booking.confirm_btn', 'Send Booking Request')}
-              </Text>
-            )}
-          </TouchableOpacity>
-        )}
+        {/* ========================================================================= */}
+        {/* 4. MAIN ACTION BUTTON (Fades and disables when slot is colliding) */}
+        {/* ========================================================================= */}
+        <TouchableOpacity
+          style={[
+            styles.submitBtn,
+            isEmergency && styles.submitBtnEmergency,
+            isSlotColliding && styles.submitBtnFaded,
+          ]}
+          onPress={handleSubmit}
+          disabled={submitting || isSlotColliding}
+          activeOpacity={0.85}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color={colors.textInverse} />
+          ) : (
+            <Text
+              style={[
+                styles.submitBtnText,
+                isSlotColliding && styles.submitBtnTextFaded,
+              ]}
+            >
+              {isEmergency
+                ? `🚨 Request Emergency Dispatch (₹${finalAmount})`
+                : isSlotColliding
+                ? `Time Slot Unavailable (${time})`
+                : t('booking.confirm_btn', 'Send Booking Request')}
+            </Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
 
       <BookingConfirmedModal
@@ -866,6 +1055,186 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       fontWeight: '800',
       color: colors.primary,
     },
+
+    // CALENDAR CARD STYLES
+    calendarCard: {
+      backgroundColor: colors.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 14,
+      marginBottom: 16,
+    },
+    calendarHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    calendarHeaderTitleGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    calendarIconCircle: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: colors.primaryLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    calendarSectionTitle: {
+      fontSize: 13.5,
+      fontWeight: '800',
+      color: colors.textPrimary,
+    },
+    calendarSectionSub: {
+      fontSize: 11,
+      color: colors.primary,
+      fontWeight: '600',
+      marginTop: 1,
+    },
+    todayPillBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 8,
+      backgroundColor: colors.primaryLight,
+      borderWidth: 1,
+      borderColor: isDark ? 'transparent' : colors.primary,
+    },
+    todayPillBtnText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.primary,
+    },
+    monthNavStrip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 7,
+      paddingHorizontal: 6,
+      marginBottom: 8,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : colors.surfaceSubtle,
+      borderRadius: 10,
+    },
+    monthArrowBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#ffffff',
+    },
+    monthLabelText: {
+      fontSize: 13.5,
+      fontWeight: '800',
+      color: colors.textPrimary,
+    },
+    weekdayRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginBottom: 6,
+    },
+    weekdayCol: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    weekdayText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textMuted,
+    },
+    daysGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    dayCell: {
+      width: '14.28%',
+      aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 1,
+    },
+    dayBadge: {
+      width: 34,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      backgroundColor: 'transparent',
+    },
+    dayBadgeSelected: {
+      backgroundColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    dayBadgeToday: {
+      borderWidth: 1.5,
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryLight,
+    },
+    dayBadgePast: {
+      opacity: 0.35,
+    },
+    dayNumberText: {
+      fontSize: 12.5,
+      fontWeight: '700',
+      color: colors.textPrimary,
+      lineHeight: 15,
+    },
+    dayNumberTextSelected: {
+      color: colors.textInverse,
+      fontWeight: '800',
+    },
+    dayNumberTextToday: {
+      color: colors.primary,
+      fontWeight: '800',
+    },
+    dayNumberTextPast: {
+      color: colors.textMuted,
+    },
+    dayBusyDot: {
+      width: 4,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: '#f59e0b',
+      marginTop: 2,
+    },
+    dayBusyDotSelected: {
+      backgroundColor: '#ffffff',
+    },
+    selectedDateBadgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: isDark ? 'rgba(8, 127, 91, 0.12)' : '#e8f7f1',
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      borderRadius: 8,
+      marginTop: 8,
+    },
+    selectedDateDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.primary,
+    },
+    selectedDateBadgeText: {
+      fontSize: 11.5,
+      color: colors.primary,
+    },
+
+    // TIME SLOTS SECTION & HORIZONTAL SCROLLBAR
     section: {
       backgroundColor: colors.surface,
       padding: 16,
@@ -885,71 +1254,47 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       fontWeight: '700',
       color: colors.textPrimary,
     },
-    quickDateRow: {
-      flexDirection: 'row',
-      gap: 8,
-      marginBottom: 10,
-    },
-    quickDateChip: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surfaceSubtle,
-    },
-    quickDateChipActive: {
-      borderColor: colors.primary,
-      backgroundColor: isDark ? 'rgba(8, 127, 91, 0.2)' : '#e8f7f1',
-    },
-    quickDateChipText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.textSecondary,
-    },
-    quickDateChipTextActive: {
-      color: colors.primary,
-      fontWeight: '800',
-    },
     slotSubtitle: {
       fontSize: 11.5,
       color: colors.textMuted,
       marginBottom: 10,
     },
-    timeSlotsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 10,
+    timeSlotsScrollView: {
+      marginHorizontal: -4,
     },
-    timeSlotChip: {
-      width: '31%',
-      minWidth: 90,
-      paddingVertical: 8,
-      paddingHorizontal: 6,
-      borderRadius: 10,
+    timeSlotsScrollContent: {
+      flexDirection: 'row',
+      gap: 8,
+      paddingHorizontal: 4,
+      paddingBottom: 6,
+    },
+    timeSlotPill: {
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.surfaceSubtle,
       alignItems: 'center',
       justifyContent: 'center',
+      minWidth: 110,
     },
-    timeSlotChipSelected: {
+    timeSlotPillSelected: {
       borderColor: colors.primary,
       backgroundColor: isDark ? 'rgba(8, 127, 91, 0.25)' : '#e8f7f1',
     },
-    timeSlotChipBusy: {
+    timeSlotPillBusy: {
       borderColor: isDark ? 'rgba(217, 119, 6, 0.3)' : '#fed7aa',
       backgroundColor: isDark ? 'rgba(217, 119, 6, 0.08)' : '#fffbeb',
     },
-    timeSlotChipBusySelected: {
+    timeSlotPillBusySelected: {
       borderColor: '#d97706',
       backgroundColor: isDark ? 'rgba(217, 119, 6, 0.2)' : '#fef3c7',
     },
-    slotContentRow: {
+    slotDotAndText: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: 6,
     },
     slotDot: {
       width: 6,
@@ -965,22 +1310,22 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     slotDotSelected: {
       backgroundColor: colors.primary,
     },
-    timeSlotText: {
-      fontSize: 11.5,
+    timeSlotPillText: {
+      fontSize: 12,
       fontWeight: '700',
       color: colors.textPrimary,
     },
-    timeSlotTextSelected: {
+    timeSlotPillTextSelected: {
       color: colors.primary,
       fontWeight: '800',
     },
-    timeSlotTextBusy: {
+    timeSlotPillTextBusy: {
       color: colors.textSecondary,
     },
     slotStatusTag: {
       fontSize: 9.5,
       fontWeight: '600',
-      marginTop: 2,
+      marginTop: 3,
     },
     slotStatusTagFree: {
       color: '#059669',
@@ -1008,6 +1353,8 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       fontWeight: '700',
       color: '#991b1b',
     },
+
+    // COLLISION CARD
     collisionCard: {
       backgroundColor: isDark ? 'rgba(217, 119, 6, 0.12)' : '#fffbeb',
       borderWidth: 1.5,
@@ -1071,75 +1418,7 @@ const createStyles = (colors: Palette, isDark: boolean) =>
       fontWeight: '800',
       color: '#ffffff',
     },
-    conflictBottomActionCard: {
-      backgroundColor: isDark ? '#1e293b' : '#ffffff',
-      borderWidth: 1.5,
-      borderColor: '#f59e0b',
-      borderRadius: 16,
-      padding: 14,
-      marginBottom: 16,
-      shadowColor: '#f59e0b',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 10,
-      elevation: 4,
-    },
-    conflictBottomHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 10,
-    },
-    conflictBottomHeaderText: {
-      fontSize: 12.5,
-      fontWeight: '700',
-      color: '#d97706',
-    },
-    conflictButtonGrid: {
-      flexDirection: 'row',
-      gap: 10,
-    },
-    conflictSelectSlotBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : '#fffbeb',
-      borderWidth: 1.5,
-      borderColor: '#f59e0b',
-      paddingVertical: 13,
-      paddingHorizontal: 8,
-      borderRadius: 12,
-    },
-    conflictSelectSlotBtnText: {
-      fontSize: 12.5,
-      fontWeight: '800',
-      color: '#b45309',
-      textAlign: 'center',
-    },
-    conflictFindAltBtn: {
-      flex: 1.2,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      backgroundColor: '#087F5B',
-      paddingVertical: 13,
-      paddingHorizontal: 8,
-      borderRadius: 12,
-      shadowColor: '#087F5B',
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.2,
-      shadowRadius: 6,
-      elevation: 3,
-    },
-    conflictFindAltBtnText: {
-      fontSize: 12.5,
-      fontWeight: '800',
-      color: '#ffffff',
-      textAlign: 'center',
-    },
+
     input: {
       backgroundColor: colors.surfaceSubtle,
       borderWidth: 1,
@@ -1250,10 +1529,21 @@ const createStyles = (colors: Palette, isDark: boolean) =>
     submitBtnEmergency: {
       backgroundColor: '#e11d48',
     },
+    submitBtnFaded: {
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : '#e2e8f0',
+      borderColor: colors.border,
+      borderWidth: 1,
+      opacity: 0.55,
+      shadowOpacity: 0,
+      elevation: 0,
+    },
     submitBtnText: {
       fontSize: 15,
       fontWeight: '800',
       color: colors.textInverse,
+    },
+    submitBtnTextFaded: {
+      color: colors.textMuted,
     },
     emergencyNoticeBanner: {
       flexDirection: 'row',
